@@ -1,0 +1,2 @@
+DROP INDEX idx_token_subscription_id_type;
+DROP INDEX idx_weather_location_id_last_updated;

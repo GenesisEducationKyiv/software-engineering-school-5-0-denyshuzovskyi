@@ -1,0 +1,47 @@
+{
+  "location": {
+    "name": "Kyiv",
+    "region": "Kyyivs'ka Oblast'",
+    "country": "Ukraine",
+    "lat": 50.4333,
+    "lon": 30.5167,
+    "tz_id": "Europe/Kiev",
+    "localtime_epoch": 1747415703,
+    "localtime": "2025-05-16 20:15"
+  },
+  "current": {
+    "last_updated_epoch": 1747415700,
+    "last_updated": "2025-05-16 20:15",
+    "temp_c": 6.6,
+    "temp_f": 43.8,
+    "is_day": 1,
+    "condition": {
+      "text": "Light drizzle",
+      "icon": "//cdn.weatherapi.com/weather/64x64/day/266.png",
+      "code": 1153
+    },
+    "wind_mph": 2.9,
+    "wind_kph": 4.7,
+    "wind_degree": 54,
+    "wind_dir": "NE",
+    "pressure_mb": 1014.0,
+    "pressure_in": 29.95,
+    "precip_mm": 0.35,
+    "precip_in": 0.01,
+    "humidity": 94,
+    "cloud": 100,
+    "feelslike_c": 6.0,
+    "feelslike_f": 42.8,
+    "windchill_c": 6.0,
+    "windchill_f": 42.8,
+    "heatindex_c": 6.6,
+    "heatindex_f": 43.8,
+    "dewpoint_c": 5.7,
+    "dewpoint_f": 42.3,
+    "vis_km": 2.0,
+    "vis_miles": 1.0,
+    "uv": 0.0,
+    "gust_mph": 4.5,
+    "gust_kph": 7.3
+  }
+}
