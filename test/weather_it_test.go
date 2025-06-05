@@ -2,10 +2,18 @@ package test
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"runtime"
+	"testing"
+
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/handler"
@@ -23,14 +31,6 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"io"
-	"log/slog"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"os"
-	"runtime"
-	"testing"
 )
 
 type TestEnv struct {
@@ -40,6 +40,8 @@ type TestEnv struct {
 }
 
 func SetupTestEnv(t *testing.T) *TestEnv {
+	t.Helper()
+
 	if testing.Short() {
 		t.Skip()
 	}
@@ -48,7 +50,7 @@ func SetupTestEnv(t *testing.T) *TestEnv {
 		t.Skip("Works only on Linux (Testcontainers)")
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ctr, err := postgres.Run(ctx, "postgres:17-alpine",
 		testcontainers.WithWaitStrategy(
@@ -135,15 +137,16 @@ func TestWeatherHandlerIT(t *testing.T) {
 	expectedTemp := float32(6.6)
 	expectedHum := float32(94)
 	expectedDesc := "Light drizzle"
+	delta := 0.01
 
-	require.Equal(t, expectedTemp, actualWeatherDto.Temperature)
-	require.Equal(t, expectedHum, actualWeatherDto.Humidity)
+	require.InDelta(t, expectedTemp, actualWeatherDto.Temperature, delta)
+	require.InDelta(t, expectedHum, actualWeatherDto.Humidity, delta)
 	require.Equal(t, expectedDesc, actualWeatherDto.Description)
 
-	actualWeatherFroDB, err := weatherRepository.FindLastUpdatedByLocation(context.Background(), env.DB, city)
+	actualWeatherFroDB, err := weatherRepository.FindLastUpdatedByLocation(t.Context(), env.DB, city)
 	require.NoError(t, err)
 	require.NotNil(t, actualWeatherFroDB)
-	require.Equal(t, expectedTemp, actualWeatherDto.Temperature)
-	require.Equal(t, expectedHum, actualWeatherDto.Humidity)
+	require.InDelta(t, expectedTemp, actualWeatherDto.Temperature, delta)
+	require.InDelta(t, expectedHum, actualWeatherDto.Humidity, delta)
 	require.Equal(t, expectedDesc, actualWeatherDto.Description)
 }

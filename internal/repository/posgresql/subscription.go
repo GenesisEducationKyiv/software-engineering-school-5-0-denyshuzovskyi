@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/sqlutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 )
@@ -184,10 +185,10 @@ func (r *SubscriptionRepository) FindAllByFrequencyAndConfirmedStatus(ctx contex
 
 		return
 	}
-	defer func(rows *sql.Rows) {
+	defer func() {
 		cerr := rows.Close()
 		err = errors.Join(err, cerr)
-	}(rows)
+	}()
 
 	for rows.Next() {
 		var s model.Subscription
