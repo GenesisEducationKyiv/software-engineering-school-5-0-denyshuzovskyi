@@ -3,12 +3,13 @@ package service
 import (
 	"context"
 	"database/sql"
+	"log/slog"
+	"time"
+
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/sqlutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/mapper"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
-	"log/slog"
-	"time"
 )
 
 type WeatherRepository interface {
@@ -64,7 +65,7 @@ func (s *WeatherService) GetCurrentWeatherForLocation(ctx context.Context, locat
 		if errIn != nil {
 			return errIn
 		}
-		if lastWeather != nil && lastWeather.LastUpdated.Equal(weather.LastUpdated) {
+		if lastWeather != nil && lastWeather.LastUpdated.Equal(weather.Weather.LastUpdated) {
 			s.log.Info("last weather update is already saved")
 			return nil
 		}

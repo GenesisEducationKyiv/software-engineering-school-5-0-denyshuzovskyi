@@ -3,12 +3,12 @@ package weatherapi
 import (
 	"encoding/json"
 	"fmt"
-	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+
+	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 )
 
 type Client struct {
@@ -43,12 +43,12 @@ func (c *Client) GetCurrentWeather(location string) (*model.WeatherWithLocation,
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform get request %w", err)
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
 			c.log.Error("failed to close body", "error", err)
 		}
-	}(resp.Body)
+	}()
 
 	if resp.StatusCode == http.StatusBadRequest {
 		return nil, commonerrors.ErrLocationNotFound

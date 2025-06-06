@@ -12,6 +12,6 @@ type Weather struct {
 }
 
 type WeatherWithLocation struct {
-	Weather
-	Location
+	Weather  Weather
+	Location Location
 }

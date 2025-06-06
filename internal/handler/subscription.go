@@ -3,11 +3,12 @@ package handler
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"net/http"
+
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
 	"github.com/go-playground/validator/v10"
-	"log/slog"
-	"net/http"
 )
 
 type SubscriptionService interface {

@@ -1,8 +1,9 @@
 package weatherapi
 
 import (
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 	"time"
+
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 )
 
 func CurrentWeatherToWeatherWithLocation(currentWeather CurrentWeather) model.WeatherWithLocation {
