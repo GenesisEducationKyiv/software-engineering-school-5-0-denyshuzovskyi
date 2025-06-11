@@ -2,6 +2,7 @@ package emailclient
 
 import (
 	"context"
+
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/mailgun/mailgun-go/v4"
 )

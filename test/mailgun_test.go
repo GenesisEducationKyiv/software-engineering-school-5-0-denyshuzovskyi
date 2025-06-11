@@ -3,10 +3,11 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/mailgun/mailgun-go/v4"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/mailgun/mailgun-go/v4"
 )
 
 func TestSendEmail(t *testing.T) {

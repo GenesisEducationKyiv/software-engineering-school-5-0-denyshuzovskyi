@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
+	"time"
+
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/sqlutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
-	"log/slog"
-	"time"
 )
 
 type NotificationService struct {
@@ -147,6 +148,7 @@ func (s *NotificationService) sendNotificationsToAllSubscribers(ctx context.Cont
 		if err != nil {
 			return err
 		}
+
 		s.log.Info("weather email is send")
 	}
 

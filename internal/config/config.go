@@ -1,17 +1,18 @@
 package config
 
 import (
-	"github.com/ilyakaznacheev/cleanenv"
 	"log"
 	"os"
+
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type Config struct {
-	HTTPServer      `yaml:"server"`
-	Datasource      `yaml:"datasource"`
-	WeatherProvider `yaml:"weather-provider"`
-	EmailService    `yaml:"email-service"`
-	Emails          []EmailData `yaml:"emails"`
+	HTTPServer      HTTPServer      `yaml:"server"`
+	Datasource      Datasource      `yaml:"datasource"`
+	WeatherProvider WeatherProvider `yaml:"weather-provider"`
+	EmailService    EmailService    `yaml:"email-service"`
+	Emails          []EmailData     `yaml:"emails"`
 }
 
 type HTTPServer struct {
