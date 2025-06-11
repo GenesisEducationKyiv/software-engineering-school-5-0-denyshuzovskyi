@@ -102,7 +102,7 @@ func TestWeatherHandlerIT(t *testing.T) {
 
 	testClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
-			StatusCode: 200,
+			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(bytes.NewReader(currentWeatherData)),
 			Header:     make(http.Header),
 		}, nil
@@ -143,10 +143,10 @@ func TestWeatherHandlerIT(t *testing.T) {
 	require.InDelta(t, expectedHum, actualWeatherDto.Humidity, delta)
 	require.Equal(t, expectedDesc, actualWeatherDto.Description)
 
-	actualWeatherFroDB, err := weatherRepository.FindLastUpdatedByLocation(t.Context(), env.DB, city)
+	actualWeatherFromDB, err := weatherRepository.FindLastUpdatedByLocation(t.Context(), env.DB, city)
 	require.NoError(t, err)
-	require.NotNil(t, actualWeatherFroDB)
-	require.InDelta(t, expectedTemp, actualWeatherDto.Temperature, delta)
-	require.InDelta(t, expectedHum, actualWeatherDto.Humidity, delta)
-	require.Equal(t, expectedDesc, actualWeatherDto.Description)
+	require.NotNil(t, actualWeatherFromDB)
+	require.InDelta(t, expectedTemp, actualWeatherFromDB.Temperature, delta)
+	require.InDelta(t, expectedHum, actualWeatherFromDB.Humidity, delta)
+	require.Equal(t, expectedDesc, actualWeatherFromDB.Description)
 }
