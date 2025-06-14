@@ -34,7 +34,7 @@
 - 1_000 унікальних міст
 - Середній розмір листа: ~2 КБ
 
-### Оціночне навантаження
+### Estimated Load
 
 | Операція              | Частота (у пік)                | Коментарі                                  |
 |-----------------------|--------------------------------|--------------------------------------------|
@@ -58,83 +58,84 @@ erDiagram
     SUBSCRIPTION ||--o{ TOKEN : "has"
 
     LOCATION {
-        int id
-        string name
+        id serial PK
+        name varchar(60) UK
     }
 
     SUBSCRIBER {
-        int id
-        string email
-        timestamp created_at
+        id serial PK
+        email varchar(60) UK
+        created_at timestamp
     }
 
     SUBSCRIPTION {
-        int id
-        int subscriber_id
-        int location_id
-        string frequency
-        string status
-        timestamp created_at
-        timestamp updated_at
+        id serial PK
+        subscriber_id int FK
+        location_id int FK
+        location_name varchar(60)
+        frequency frequency
+        status subscription_status
+        created_at timestamp
+        updated_at timestamp
     }
 
     TOKEN {
-        string token
-        int subscription_id
-        string type
-        timestamp created_at
-        timestamp expires_at
-        timestamp used_at
+        token char(36) PK
+        subscription_id int FK
+        type token_type
+        created_at timestamp
+        expires_at timestamp
+        used_at timestamp
     }
 
     WEATHER {
-        int location_id
-        timestamp last_updated
-        timestamp fetched_at
-        float temperature
-        float humidity
-        string description
+        location_id int PK,FK
+        last_updated timestamp PK
+        fetched_at timestamp
+        temperature numeric
+        humidity numeric
+        description varchar(400)
     }
 ```
 
-### 4.1 Структура БД після видалення таблиці LOCATION
+### 4.2 Структура БД після видалення таблиці LOCATION
 ```mermaid
 erDiagram
     SUBSCRIBER ||--o{ SUBSCRIPTION : "has"
     SUBSCRIPTION ||--o{ TOKEN : "has"
 
     SUBSCRIBER {
-        int id
-        string email
-        timestamp created_at
+        id serial PK
+        email varchar(60) UK
+        created_at timestamp
     }
 
     SUBSCRIPTION {
-        int id
-        int subscriber_id
-        string location_name
-        string frequency
-        string status
-        timestamp created_at
-        timestamp updated_at
+        id serial PK
+        subscriber_id int FK
+        location_name varchar(60)
+        frequency frequency
+        status subscription_status
+        created_at timestamp
+        updated_at timestamp
     }
 
     TOKEN {
-        string token
-        int subscription_id
-        string type
-        timestamp created_at
-        timestamp expires_at
-        timestamp used_at
+        token char(36) PK
+        subscription_id int FK
+        type token_type
+        created_at timestamp
+        expires_at timestamp
+        used_at timestamp
     }
 
     WEATHER {
-        string location_name
-        timestamp last_updated
-        timestamp fetched_at
-        float temperature
-        float humidity
-        string description
+        location_name varchar(60) PK
+        last_updated timestamp PK
+        fetched_at timestamp
+        temperature numeric
+        humidity numeric
+        description varchar(400)
     }
 ```
 
