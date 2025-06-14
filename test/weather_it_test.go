@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -15,17 +14,14 @@ import (
 	"testing"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/database"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/handler"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/httputil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/logger/noophandler"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/posgresql"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server/handler"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/migrations"
-	"github.com/golang-migrate/migrate/v4"
-	mpostgres "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -50,6 +46,7 @@ func SetupTestEnv(t *testing.T) *TestEnv {
 		t.Skip("Works only on Linux (Testcontainers)")
 	}
 
+	log := slog.New(noophandler.NewNoOpHandler())
 	ctx := t.Context()
 
 	ctr, err := postgres.Run(ctx, "postgres:17-alpine",
@@ -62,26 +59,12 @@ func SetupTestEnv(t *testing.T) *TestEnv {
 	require.NoError(t, err)
 	t.Log(conn)
 
-	db, err := sql.Open("pgx", conn)
+	db, err := database.InitDB(conn, log)
 	require.NoError(t, err)
 
-	driver, err := mpostgres.WithInstance(db, &mpostgres.Config{})
+	err = database.RunMigrations(db, ".", log)
 	require.NoError(t, err)
-
-	d, err := iofs.New(migrations.Files, ".")
-	require.NoError(t, err)
-
-	m, err := migrate.NewWithInstance("iofs", d, "postgres", driver)
-	require.NoError(t, err)
-
-	err = m.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		t.Fatalf("unable to apply migrations: %v", err)
-	} else {
-		t.Log("migration completed successfully")
-	}
-
-	log := slog.New(noophandler.NewNoOpHandler())
+	t.Log("migration completed successfully")
 
 	return &TestEnv{
 		Log: log,
