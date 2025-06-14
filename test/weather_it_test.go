@@ -109,9 +109,8 @@ func TestWeatherHandlerIT(t *testing.T) {
 	})
 
 	weatherApiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", testClient, env.Log)
-	locationRepository := posgresql.NewLocationRepository()
 	weatherRepository := posgresql.NewWeatherRepository()
-	weatherService := service.NewWeatherService(env.DB, weatherApiClient, locationRepository, weatherRepository, env.Log)
+	weatherService := service.NewWeatherService(env.DB, weatherApiClient, weatherRepository, env.Log)
 	weatherHandler := handler.NewWeatherHandler(weatherService, env.Log)
 
 	city := "Kyiv"
