@@ -27,7 +27,7 @@ func NewClient(baseURL, apiKey string, client *http.Client, log *slog.Logger) *C
 	}
 }
 
-func (c *Client) GetCurrentWeather(location string) (*model.WeatherWithLocation, error) {
+func (c *Client) GetCurrentWeather(location string) (*model.Weather, error) {
 	u, err := url.Parse(c.baseURL + "/current.json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse url %w", err)
@@ -54,11 +54,11 @@ func (c *Client) GetCurrentWeather(location string) (*model.WeatherWithLocation,
 		return nil, commonerrors.ErrLocationNotFound
 	}
 
-	var weather CurrentWeather
-	if err := json.NewDecoder(resp.Body).Decode(&weather); err != nil {
+	var currentWeather CurrentWeather
+	if err := json.NewDecoder(resp.Body).Decode(&currentWeather); err != nil {
 		return nil, fmt.Errorf("failed decode response %w", err)
 	}
-	weatherWithLocation := CurrentWeatherToWeatherWithLocation(weather)
+	weather := CurrentWeatherToWeather(currentWeather)
 
-	return &weatherWithLocation, nil
+	return &weather, nil
 }

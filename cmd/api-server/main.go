@@ -84,14 +84,13 @@ func main() {
 
 	weatherApiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, &http.Client{}, log)
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
-	locationRepository := posgresql.NewLocationRepository()
 	weatherRepository := posgresql.NewWeatherRepository()
 	subscriberRepository := posgresql.NewSubscriberRepository()
 	subscriptionRepository := posgresql.NewSubscriptionRepository()
 	tokenRepository := posgresql.NewTokenRepository()
-	weatherService := service.NewWeatherService(db, weatherApiClient, locationRepository, weatherRepository, log)
-	subscriptionService := service.NewSubscriptionService(db, weatherApiClient, locationRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
-	notificationService := service.NewNotificationService(db, weatherApiClient, locationRepository, weatherRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, log)
+	weatherService := service.NewWeatherService(db, weatherApiClient, weatherRepository, log)
+	subscriptionService := service.NewSubscriptionService(db, weatherApiClient, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
+	notificationService := service.NewNotificationService(db, weatherApiClient, weatherRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, log)
 	weatherHandler := handler.NewWeatherHandler(weatherService, log)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, validate, log)
 

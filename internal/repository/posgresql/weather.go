@@ -19,11 +19,11 @@ func NewWeatherRepository() *WeatherRepository {
 
 func (r *WeatherRepository) Save(ctx context.Context, ex sqlutil.SQLExecutor, weather *model.Weather) error {
 	const op = "repository.postgresql.weather.Save"
-	const query = "INSERT INTO weather (location_id, last_updated, fetched_at, temperature, humidity, description) VALUES ($1, $2, $3, $4, $5, $6)"
+	const query = "INSERT INTO weather (location_name, last_updated, fetched_at, temperature, humidity, description) VALUES ($1, $2, $3, $4, $5, $6)"
 	_, err := ex.ExecContext(
 		ctx,
 		query,
-		weather.LocationId,
+		weather.LocationName,
 		weather.LastUpdated.UTC(),
 		weather.FetchedAt.UTC(),
 		weather.Temperature,
@@ -45,22 +45,21 @@ func (r *WeatherRepository) FindLastUpdatedByLocation(
 	const op = "repository.postgresql.weather.FindLastUpdatedByLocation"
 	const query = `
 		SELECT 
-			w.location_id, 
+			w.location_name, 
 			w.last_updated, 
 			w.fetched_at, 
 			w.temperature, 
 			w.humidity, 
 			w.description
 		FROM weather w
-		JOIN location l ON w.location_id = l.id
-		WHERE l.name = $1
+		WHERE w.location_name = $1
 		ORDER BY w.last_updated DESC
 		LIMIT 1;
 	`
 
 	var w model.Weather
 	err := ex.QueryRowContext(ctx, query, location).Scan(
-		&w.LocationId,
+		&w.LocationName,
 		&w.LastUpdated,
 		&w.FetchedAt,
 		&w.Temperature,

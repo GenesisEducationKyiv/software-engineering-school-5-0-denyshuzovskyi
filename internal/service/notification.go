@@ -16,7 +16,6 @@ import (
 type NotificationService struct {
 	db                     *sql.DB
 	weatherProvider        WeatherProvider
-	locationRepository     LocationRepository
 	weatherRepository      WeatherRepository
 	subscriberRepository   SubscriberRepository
 	subscriptionRepository SubscriptionRepository
@@ -28,7 +27,6 @@ type NotificationService struct {
 func NewNotificationService(
 	db *sql.DB,
 	weatherProvider WeatherProvider,
-	locationRepository LocationRepository,
 	weatherRepository WeatherRepository,
 	subscriberRepository SubscriberRepository,
 	subscriptionRepository SubscriptionRepository,
@@ -38,7 +36,6 @@ func NewNotificationService(
 	return &NotificationService{
 		db:                     db,
 		weatherProvider:        weatherProvider,
-		locationRepository:     locationRepository,
 		weatherRepository:      weatherRepository,
 		subscriberRepository:   subscriberRepository,
 		subscriptionRepository: subscriptionRepository,
@@ -100,34 +97,29 @@ func (s *NotificationService) sendNotificationsToAllSubscribers(ctx context.Cont
 		if err != nil {
 			return err
 		}
-		location, err := s.locationRepository.FindById(ctx, tx, subscriptions[i].LocationId)
-		if err != nil {
-			return err
-		}
 		token, err := s.tokenRepository.FindBySubscriptionIdAndType(ctx, tx, subscriptions[i].Id, model.TokenType_Unsubscribe)
 		if err != nil {
 			return err
 		}
-		lastWeather, err := s.weatherRepository.FindLastUpdatedByLocation(ctx, tx, location.Name)
+		lastWeather, err := s.weatherRepository.FindLastUpdatedByLocation(ctx, tx, subscriptions[i].LocationName)
 		if err != nil {
 			return err
 		}
 
 		if lastWeather == nil || lastWeather.LastUpdated.Add(15*time.Minute).Before(time.Now()) {
-			weather, err := s.weatherProvider.GetCurrentWeather(location.Name)
+			weather, err := s.weatherProvider.GetCurrentWeather(subscriptions[i].LocationName)
 			if err != nil {
 				return err
 			}
 
-			weather.Weather.LocationId = location.Id
-			weather.Weather.FetchedAt = time.Now().UTC()
+			weather.FetchedAt = time.Now().UTC()
 
-			err = s.weatherRepository.Save(ctx, tx, &weather.Weather)
+			err = s.weatherRepository.Save(ctx, tx, weather)
 			if err != nil {
 				return err
 			}
 
-			lastWeather = &weather.Weather
+			lastWeather = weather
 		}
 
 		email := dto.SimpleEmail{
@@ -136,7 +128,7 @@ func (s *NotificationService) sendNotificationsToAllSubscribers(ctx context.Cont
 			Subject: emailData.Subject,
 			Text: fmt.Sprintf(
 				emailData.Text,
-				location.Name,
+				lastWeather.LocationName,
 				lastWeather.Temperature,
 				lastWeather.Humidity,
 				lastWeather.Description,
