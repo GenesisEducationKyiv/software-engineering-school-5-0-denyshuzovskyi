@@ -44,10 +44,12 @@
 | Записи в БД           | (1_000 + 10_000)/год  (~3.1/с) | Оновлення погоди, статуси відправки        |
 
 ### Коментарі
+- використати Redis для кешу погоди
 - потрібно реалізувати batch-відправку листів
 - необхідно коректно налаштувати пули з'єднань до БД та HTTP з'єднань
 
 ## 4. Структура БД
+### 4.1 Оригінальна структура БД
 ```mermaid
 erDiagram
     LOCATION ||--o{ SUBSCRIPTION : "has"
@@ -94,6 +96,48 @@ erDiagram
         string description
     }
 ```
+
+### 4.1 Структура БД після видалення таблиці LOCATION
+```mermaid
+erDiagram
+    SUBSCRIBER ||--o{ SUBSCRIPTION : "has"
+    SUBSCRIPTION ||--o{ TOKEN : "has"
+
+    SUBSCRIBER {
+        int id
+        string email
+        timestamp created_at
+    }
+
+    SUBSCRIPTION {
+        int id
+        int subscriber_id
+        string location_name
+        string frequency
+        string status
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    TOKEN {
+        string token
+        int subscription_id
+        string type
+        timestamp created_at
+        timestamp expires_at
+        timestamp used_at
+    }
+
+    WEATHER {
+        string location_name
+        timestamp last_updated
+        timestamp fetched_at
+        float temperature
+        float humidity
+        string description
+    }
+```
+
 
 ## 5. Sequence Diagrams
 
