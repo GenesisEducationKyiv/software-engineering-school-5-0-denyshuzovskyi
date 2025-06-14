@@ -78,7 +78,7 @@ func NewSubscriptionService(
 
 func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.SubscriptionRequest) error {
 	err := sqlutil.WithTx(ctx, s.db, nil, func(tx *sql.Tx) error {
-		weather, errIn := s.weatherProvider.GetCurrentWeather(subReq.City)
+		weather, errIn := s.weatherProvider.GetCurrentWeather(ctx, subReq.City)
 		if errIn != nil {
 			if errors.Is(errIn, commonerrors.ErrLocationNotFound) {
 				return errIn

@@ -8,7 +8,7 @@ import (
 )
 
 type WeatherProvider interface {
-	GetCurrentWeather(string) (*model.Weather, error)
+	GetCurrentWeather(context.Context, string) (*model.Weather, error)
 }
 
 type EmailSender interface {

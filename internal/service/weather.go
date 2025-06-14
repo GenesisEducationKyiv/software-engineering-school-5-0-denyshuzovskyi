@@ -34,7 +34,7 @@ func NewWeatherService(db *sql.DB, weatherProvider WeatherProvider, weatherRepos
 }
 
 func (s *WeatherService) GetCurrentWeatherForLocation(ctx context.Context, location string) (*dto.WeatherDTO, error) {
-	weather, err := s.weatherProvider.GetCurrentWeather(location)
+	weather, err := s.weatherProvider.GetCurrentWeather(ctx, location)
 	if err != nil {
 		return nil, err
 	}

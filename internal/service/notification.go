@@ -97,7 +97,7 @@ func (s *NotificationService) processAndSendNotification(ctx context.Context, su
 	}
 
 	if lastWeather == nil || lastWeather.LastUpdated.Add(15*time.Minute).Before(time.Now()) {
-		weather, err := s.weatherProvider.GetCurrentWeather(sub.LocationName)
+		weather, err := s.weatherProvider.GetCurrentWeather(ctx, sub.LocationName)
 		if err != nil {
 			return fmt.Errorf("update weather: %w", err)
 		}

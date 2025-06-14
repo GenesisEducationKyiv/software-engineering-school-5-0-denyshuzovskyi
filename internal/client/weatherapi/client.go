@@ -1,6 +1,7 @@
 package weatherapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -27,10 +28,10 @@ func NewClient(baseURL, apiKey string, client *http.Client, log *slog.Logger) *C
 	}
 }
 
-func (c *Client) GetCurrentWeather(location string) (*model.Weather, error) {
+func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*model.Weather, error) {
 	u, err := url.Parse(c.baseURL + "/current.json")
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse url %w", err)
+		return nil, fmt.Errorf("parse url: %w", err)
 	}
 
 	q := u.Query()
@@ -39,9 +40,14 @@ func (c *Client) GetCurrentWeather(location string) (*model.Weather, error) {
 	q.Set("aqi", "no")
 	u.RawQuery = q.Encode()
 
-	resp, err := c.client.Get(u.String())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to perform get request %w", err)
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("perform request: %w", err)
 	}
 
 	defer func() {
@@ -50,15 +56,19 @@ func (c *Client) GetCurrentWeather(location string) (*model.Weather, error) {
 		}
 	}()
 
-	if resp.StatusCode == http.StatusBadRequest {
+	switch resp.StatusCode {
+	case http.StatusOK:
+	case http.StatusBadRequest:
 		return nil, commonerrors.ErrLocationNotFound
+	default:
+		return nil, fmt.Errorf("%w status code: %d", commonerrors.ErrUnexpectedStatusCode, resp.StatusCode)
 	}
 
 	var currentWeather CurrentWeather
 	if err := json.NewDecoder(resp.Body).Decode(&currentWeather); err != nil {
-		return nil, fmt.Errorf("failed decode response %w", err)
+		return nil, fmt.Errorf("decode response: %w", err)
 	}
-	weather := CurrentWeatherToWeather(currentWeather)
 
+	weather := CurrentWeatherToWeather(currentWeather)
 	return &weather, nil
 }
