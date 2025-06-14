@@ -31,7 +31,7 @@ func (r *WeatherRepository) Save(ctx context.Context, ex sqlutil.SQLExecutor, we
 		weather.Description,
 	)
 	if err != nil {
-		return fmt.Errorf("%s: scan id: %w", op, err)
+		return fmt.Errorf("%s: exec insert: %w", op, err)
 	}
 
 	return nil

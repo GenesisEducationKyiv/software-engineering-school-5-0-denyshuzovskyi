@@ -38,7 +38,7 @@ func (r *SubscriptionRepository) Save(ctx context.Context, ex sqlutil.SQLExecuto
 }
 
 func (r *SubscriptionRepository) FindBySubscriberIdAndLocationName(ctx context.Context, ex sqlutil.SQLExecutor, subscriberId int32, locationName string) (*model.Subscription, error) {
-	const op = "repository.postgresql.subscriber.FindBySubscriberIdAndLocationName"
+	const op = "repository.postgresql.subscription.FindBySubscriberIdAndLocationName"
 	const query = `
 		SELECT 
 			s.id,
