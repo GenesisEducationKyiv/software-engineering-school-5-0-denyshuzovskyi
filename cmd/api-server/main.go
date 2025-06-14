@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -95,10 +96,12 @@ func main() {
 	weatherHandler := handler.NewWeatherHandler(weatherService, log)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, validate, log)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	c := cron.New()
 	// daily 09:00
 	_, err = c.AddFunc("0 9 * * *", func() {
-		notificationService.SendNotifications(model.Frequency_Daily, weatherEmailData)
+		notificationService.SendNotifications(ctx, model.Frequency_Daily, weatherEmailData)
 	})
 	if err != nil {
 		log.Error("failed to schedule notification service", "error", err)
@@ -106,7 +109,7 @@ func main() {
 	}
 	// hourly
 	_, err = c.AddFunc("0 * * * *", func() {
-		notificationService.SendNotifications(model.Frequency_Hourly, weatherEmailData)
+		notificationService.SendNotifications(ctx, model.Frequency_Hourly, weatherEmailData)
 	})
 	if err != nil {
 		log.Error("failed to schedule notification service", "error", err)

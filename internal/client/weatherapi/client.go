@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"path"
 
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
@@ -29,10 +30,11 @@ func NewClient(baseURL, apiKey string, client *http.Client, log *slog.Logger) *C
 }
 
 func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*model.Weather, error) {
-	u, err := url.Parse(c.baseURL + "/current.json")
+	u, err := url.Parse(c.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse url: %w", err)
 	}
+	u.Path = path.Join(u.Path, "current.json")
 
 	q := u.Query()
 	q.Set("key", c.apiKey)

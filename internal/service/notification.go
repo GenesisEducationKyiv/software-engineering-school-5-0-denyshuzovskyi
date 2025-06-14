@@ -45,9 +45,8 @@ func NewNotificationService(
 	}
 }
 
-func (s *NotificationService) SendNotifications(frequency model.Frequency, emailData config.EmailData) {
+func (s *NotificationService) SendNotifications(ctx context.Context, frequency model.Frequency, emailData config.EmailData) {
 	s.log.Info("triggered SendNotifications", "frequency", frequency)
-	ctx := context.Background()
 
 	var subscriptions []*model.Subscription
 	err := sqlutil.WithTx(ctx, s.db, &sql.TxOptions{ReadOnly: true}, func(tx *sql.Tx) error {
