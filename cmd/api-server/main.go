@@ -12,6 +12,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/handler"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/posgresql"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/migrations"
@@ -97,7 +98,7 @@ func main() {
 	c := cron.New()
 	// daily 09:00
 	_, err = c.AddFunc("0 9 * * *", func() {
-		notificationService.SendDailyNotifications(weatherEmailData)
+		notificationService.SendNotifications(model.Frequency_Daily, weatherEmailData)
 	})
 	if err != nil {
 		log.Error("failed to schedule notification service", "error", err)
@@ -105,7 +106,7 @@ func main() {
 	}
 	// hourly
 	_, err = c.AddFunc("0 * * * *", func() {
-		notificationService.SendHourlyNotifications(weatherEmailData)
+		notificationService.SendNotifications(model.Frequency_Hourly, weatherEmailData)
 	})
 	if err != nil {
 		log.Error("failed to schedule notification service", "error", err)
