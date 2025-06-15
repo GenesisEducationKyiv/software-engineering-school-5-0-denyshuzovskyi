@@ -10,5 +10,5 @@ var (
 	ErrUnexpectedState           = errors.New("unexpected state")
 
 	ErrUnexpectedStatusCode = errors.New("unexpected status code")
-	ErrWrongEmailData       = errors.New("wrong email data")
+	ErrInvalidEmailData     = errors.New("invalid email data")
 )

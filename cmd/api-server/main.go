@@ -62,7 +62,7 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 	unsubEmailData, unsubOk := emailDataMap["unsubscribe"]
 	if !confOk || !confSuccessOk || !weatherOk || !unsubOk {
 		log.Error("cannot prepare email data")
-		return commonerrors.ErrWrongEmailData
+		return commonerrors.ErrInvalidEmailData
 	}
 
 	weatherApiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, &http.Client{}, log)

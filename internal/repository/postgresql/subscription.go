@@ -147,7 +147,7 @@ func (r *SubscriptionRepository) Update(ctx context.Context, ex sqlutil.SQLExecu
 		subscription.LocationName,
 		subscription.Frequency,
 		subscription.Status,
-		subscription.UpdatedAt,
+		subscription.UpdatedAt.UTC(),
 		subscription.Id,
 	).Scan(
 		&updated.Id,
