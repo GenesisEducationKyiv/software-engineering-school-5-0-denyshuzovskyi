@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log/slog"
@@ -11,12 +12,17 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-func InitDB(url string, log *slog.Logger) (*sql.DB, error) {
+func InitDB(ctx context.Context, url string, log *slog.Logger) (*sql.DB, error) {
 	db, err := sql.Open("pgx", url)
 	if err != nil {
 		log.Error("unable to open database", "error", err)
 		return nil, err
 	}
+	if err = db.PingContext(ctx); err != nil {
+		log.Error("unable to ping database", "error", err)
+		return nil, err
+	}
+
 	return db, nil
 }
 

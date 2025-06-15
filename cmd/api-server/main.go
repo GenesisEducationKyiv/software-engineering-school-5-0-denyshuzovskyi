@@ -14,7 +14,8 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config/email"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/cron"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/database"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/posgresql"
+	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/postgresql"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server/handler"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service"
@@ -35,9 +36,11 @@ func main() {
 }
 
 func runApp(cfg *config.Config, log *slog.Logger) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	validate := validator.New()
 
-	db, err := database.InitDB(cfg.Datasource.Url, log)
+	db, err := database.InitDB(ctx, cfg.Datasource.Url, log)
 	if err != nil {
 		return err
 	}
@@ -59,16 +62,16 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 	unsubEmailData, unsubOk := emailDataMap["unsubscribe"]
 	if !confOk || !confSuccessOk || !weatherOk || !unsubOk {
 		log.Error("cannot prepare email data")
-		return err
+		return commonerrors.ErrWrongEmailData
 	}
 
 	weatherApiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, &http.Client{}, log)
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
 
-	weatherRepository := posgresql.NewWeatherRepository()
-	subscriberRepository := posgresql.NewSubscriberRepository()
-	subscriptionRepository := posgresql.NewSubscriptionRepository()
-	tokenRepository := posgresql.NewTokenRepository()
+	weatherRepository := postgresql.NewWeatherRepository()
+	subscriberRepository := postgresql.NewSubscriberRepository()
+	subscriptionRepository := postgresql.NewSubscriptionRepository()
+	tokenRepository := postgresql.NewTokenRepository()
 
 	weatherService := service.NewWeatherService(db, weatherApiClient, weatherRepository, log)
 	subscriptionService := service.NewSubscriptionService(db, weatherApiClient, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
@@ -77,8 +80,6 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 	weatherHandler := handler.NewWeatherHandler(weatherService, log)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, validate, log)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	if err = cron.StartCronJobs(ctx, notificationService, weatherEmailData, log); err != nil {
 		return err
 	}

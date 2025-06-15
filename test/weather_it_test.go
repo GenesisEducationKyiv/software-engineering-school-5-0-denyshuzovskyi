@@ -18,7 +18,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/httputil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/logger/noophandler"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/posgresql"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/postgresql"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server/handler"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -59,7 +59,7 @@ func SetupTestEnv(t *testing.T) *TestEnv {
 	require.NoError(t, err)
 	t.Log(conn)
 
-	db, err := database.InitDB(conn, log)
+	db, err := database.InitDB(ctx, conn, log)
 	require.NoError(t, err)
 
 	err = database.RunMigrations(db, ".", log)
@@ -92,7 +92,7 @@ func TestWeatherHandlerIT(t *testing.T) {
 	})
 
 	weatherApiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", testClient, env.Log)
-	weatherRepository := posgresql.NewWeatherRepository()
+	weatherRepository := postgresql.NewWeatherRepository()
 	weatherService := service.NewWeatherService(env.DB, weatherApiClient, weatherRepository, env.Log)
 	weatherHandler := handler.NewWeatherHandler(weatherService, env.Log)
 
