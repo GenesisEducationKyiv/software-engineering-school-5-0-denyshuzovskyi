@@ -1,11 +1,13 @@
 package weatherapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"path"
 
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
@@ -27,11 +29,12 @@ func NewClient(baseURL, apiKey string, client *http.Client, log *slog.Logger) *C
 	}
 }
 
-func (c *Client) GetCurrentWeather(location string) (*model.WeatherWithLocation, error) {
-	u, err := url.Parse(c.baseURL + "/current.json")
+func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*model.Weather, error) {
+	u, err := url.Parse(c.baseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse url %w", err)
+		return nil, fmt.Errorf("parse url: %w", err)
 	}
+	u.Path = path.Join(u.Path, "current.json")
 
 	q := u.Query()
 	q.Set("key", c.apiKey)
@@ -39,9 +42,14 @@ func (c *Client) GetCurrentWeather(location string) (*model.WeatherWithLocation,
 	q.Set("aqi", "no")
 	u.RawQuery = q.Encode()
 
-	resp, err := c.client.Get(u.String())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to perform get request %w", err)
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("perform request: %w", err)
 	}
 
 	defer func() {
@@ -50,15 +58,19 @@ func (c *Client) GetCurrentWeather(location string) (*model.WeatherWithLocation,
 		}
 	}()
 
-	if resp.StatusCode == http.StatusBadRequest {
+	switch resp.StatusCode {
+	case http.StatusOK:
+	case http.StatusBadRequest:
 		return nil, commonerrors.ErrLocationNotFound
+	default:
+		return nil, fmt.Errorf("%w status code: %d", commonerrors.ErrUnexpectedStatusCode, resp.StatusCode)
 	}
 
-	var weather CurrentWeather
-	if err := json.NewDecoder(resp.Body).Decode(&weather); err != nil {
-		return nil, fmt.Errorf("failed decode response %w", err)
+	var currentWeather CurrentWeather
+	if err := json.NewDecoder(resp.Body).Decode(&currentWeather); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
 	}
-	weatherWithLocation := CurrentWeatherToWeatherWithLocation(weather)
 
-	return &weatherWithLocation, nil
+	weather := CurrentWeatherToWeather(currentWeather)
+	return &weather, nil
 }

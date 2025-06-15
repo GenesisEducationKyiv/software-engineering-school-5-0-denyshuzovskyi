@@ -24,7 +24,7 @@ type SubscriberRepository interface {
 
 type SubscriptionRepository interface {
 	Save(context.Context, sqlutil.SQLExecutor, *model.Subscription) (int32, error)
-	FindBySubscriberIdAndLocationId(context.Context, sqlutil.SQLExecutor, int32, int32) (*model.Subscription, error)
+	FindBySubscriberIdAndLocationName(context.Context, sqlutil.SQLExecutor, int32, string) (*model.Subscription, error)
 	FindById(context.Context, sqlutil.SQLExecutor, int32) (*model.Subscription, error)
 	DeleteById(context.Context, sqlutil.SQLExecutor, int32) error
 	Update(context.Context, sqlutil.SQLExecutor, *model.Subscription) (*model.Subscription, error)
@@ -40,7 +40,6 @@ type TokenRepository interface {
 type SubscriptionService struct {
 	db                      *sql.DB
 	weatherProvider         WeatherProvider
-	locationRepository      LocationRepository
 	subscriberRepository    SubscriberRepository
 	subscriptionRepository  SubscriptionRepository
 	tokenRepository         TokenRepository
@@ -51,9 +50,9 @@ type SubscriptionService struct {
 	log                     *slog.Logger
 }
 
-func NewSubscriptionService(db *sql.DB,
+func NewSubscriptionService(
+	db *sql.DB,
 	weatherProvider WeatherProvider,
-	locationRepository LocationRepository,
 	subscriberRepository SubscriberRepository,
 	subscriptionRepository SubscriptionRepository,
 	tokenRepository TokenRepository,
@@ -61,11 +60,11 @@ func NewSubscriptionService(db *sql.DB,
 	confirmEmailData config.EmailData,
 	confirmSuccessEmailData config.EmailData,
 	unsubEmailData config.EmailData,
-	log *slog.Logger) *SubscriptionService {
+	log *slog.Logger,
+) *SubscriptionService {
 	return &SubscriptionService{
 		db:                      db,
 		weatherProvider:         weatherProvider,
-		locationRepository:      locationRepository,
 		subscriberRepository:    subscriberRepository,
 		subscriptionRepository:  subscriptionRepository,
 		tokenRepository:         tokenRepository,
@@ -79,26 +78,12 @@ func NewSubscriptionService(db *sql.DB,
 
 func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.SubscriptionRequest) error {
 	err := sqlutil.WithTx(ctx, s.db, nil, func(tx *sql.Tx) error {
-		loc, errIn := s.locationRepository.FindByName(ctx, tx, subReq.City)
+		weather, errIn := s.weatherProvider.GetCurrentWeather(ctx, subReq.City)
 		if errIn != nil {
-			return errIn
-		}
-
-		var locId int32
-		if loc != nil {
-			locId = loc.Id
-		} else {
-			weather, errIn := s.weatherProvider.GetCurrentWeather(subReq.City)
-			if errIn != nil {
-				if errors.Is(errIn, commonerrors.ErrLocationNotFound) {
-					return errIn
-				} else {
-					return fmt.Errorf("unable to validate location err:%w", errIn)
-				}
-			}
-			locId, errIn = s.locationRepository.Save(ctx, tx, &weather.Location)
-			if errIn != nil {
+			if errors.Is(errIn, commonerrors.ErrLocationNotFound) {
 				return errIn
+			} else {
+				return fmt.Errorf("unable to validate location err:%w", errIn)
 			}
 		}
 
@@ -120,7 +105,7 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.Subscrip
 			}
 		}
 
-		subscription, errIn := s.subscriptionRepository.FindBySubscriberIdAndLocationId(ctx, tx, subscriberId, locId)
+		subscription, errIn := s.subscriptionRepository.FindBySubscriberIdAndLocationName(ctx, tx, subscriberId, weather.LocationName)
 		if errIn != nil {
 			return errIn
 		}
@@ -131,7 +116,7 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.Subscrip
 		subscription = &model.Subscription{
 			Id:           0,
 			SubscriberId: subscriberId,
-			LocationId:   locId,
+			LocationName: weather.LocationName,
 			Frequency:    model.Frequency(subReq.Frequency),
 			Status:       model.SubscriptionStatus_Pending,
 			CreatedAt:    time.Now().UTC(),

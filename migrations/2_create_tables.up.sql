@@ -1,9 +1,3 @@
-CREATE TABLE location
-(
-    id   SERIAL PRIMARY KEY,
-    name VARCHAR(60) NOT NULL UNIQUE
-);
-
 CREATE TABLE subscriber
 (
     id         SERIAL PRIMARY KEY,
@@ -16,13 +10,12 @@ CREATE TABLE subscription
     id            SERIAL PRIMARY KEY,
     subscriber_id INT                 NOT NULL
         REFERENCES subscriber (id) ON DELETE CASCADE,
-    location_id   INT                 NOT NULL
-        REFERENCES location (id) ON DELETE CASCADE,
+    location_name VARCHAR(60)         NOT NULL,
     frequency     frequency           NOT NULL,
     status        subscription_status NOT NULL,
     created_at    TIMESTAMP           NOT NULL,
     updated_at    TIMESTAMP           NOT NULL,
-    UNIQUE (subscriber_id, location_id)
+    UNIQUE (subscriber_id, location_name)
 );
 
 
@@ -39,11 +32,11 @@ CREATE TABLE token
 
 CREATE TABLE weather
 (
-    location_id  INT           NOT NULL REFERENCES location (id),
+    location_name VARCHAR(60)      NOT NULL,
     last_updated TIMESTAMP     NOT NULL,
     fetched_at   TIMESTAMP     NOT NULL,
     temperature  NUMERIC(5, 2) NOT NULL,
     humidity     NUMERIC(5, 2) NOT NULL CHECK (humidity BETWEEN 0 AND 100),
     description  VARCHAR(400)  NOT NULL,
-    PRIMARY KEY (location_id, last_updated)
+    PRIMARY KEY (location_name, last_updated)
 );
