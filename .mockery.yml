@@ -11,6 +11,6 @@ require-template-schema-exists: true
 template: testify
 template-schema: '{{.Template}}.schema.json'
 packages:
-  nimbus-notify/internal/service:
+  github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service:
     config:
       all: true

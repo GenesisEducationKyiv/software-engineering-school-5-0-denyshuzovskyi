@@ -84,10 +84,10 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 
-	router := server.InitRouter(weatherHandler, subscriptionHandler)
+	mux := server.InitMux(weatherHandler, subscriptionHandler)
 	srv := &http.Server{
 		Addr:    net.JoinHostPort(cfg.HTTPServer.Host, cfg.HTTPServer.Port),
-		Handler: router,
+		Handler: mux,
 	}
 
 	log.Info("starting http server", "addr", srv.Addr)
