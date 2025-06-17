@@ -1,0 +1,42 @@
+services:
+  postgresql:
+    image: postgres:17-alpine
+    container_name: nimbus-notify-postgresql
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    networks:
+      - nimbus-notify-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d ${POSTGRES_DB} -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api-server:
+    build:
+      context: .
+      dockerfile: api-server.Dockerfile
+    container_name: nimbus-notify-api-server
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    networks:
+      - nimbus-notify-network
+    environment:
+      SERVER_HOST: ${SERVER_HOST}
+      SERVER_PORT: ${SERVER_PORT}
+      DATABASE_URL: ${DATABASE_URL}
+      WEATHER_PROVIDER_URL: ${WEATHER_PROVIDER_URL}
+      WEATHER_PROVIDER_KEY: ${WEATHER_PROVIDER_KEY}
+      EMAIL_SERVICE_DOMAIN: ${EMAIL_SERVICE_DOMAIN}
+      EMAIL_SERVICE_KEY: ${EMAIL_SERVICE_KEY}
+
+networks:
+  nimbus-notify-network:
+    driver: bridge
