@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/emailclient"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/subscription"
 	"github.com/go-playground/validator/v10"
 	"github.com/mailgun/mailgun-go/v4"
 	"io"
@@ -213,7 +214,7 @@ func TestSubConfirmUnsubIT(t *testing.T) {
 		From:    "sender@test.com",
 	}
 
-	subscriptionService := service.NewSubscriptionService(
+	subscriptionService := subscription.NewSubscriptionService(
 		env.DB, weatherApiClient,
 		subscriberRepository,
 		subscriptionRepository,
