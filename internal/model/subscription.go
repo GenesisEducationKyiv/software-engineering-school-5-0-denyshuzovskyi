@@ -25,7 +25,7 @@ type Subscriber struct {
 type Subscription struct {
 	Id           int32
 	SubscriberId int32
-	LocationId   int32
+	LocationName string
 	Frequency    Frequency
 	Status       SubscriptionStatus
 	CreatedAt    time.Time

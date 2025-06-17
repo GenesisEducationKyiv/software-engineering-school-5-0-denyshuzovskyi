@@ -18,59 +18,40 @@ type WeatherRepository interface {
 }
 
 type WeatherService struct {
-	db                 *sql.DB
-	weatherProvider    WeatherProvider
-	locationRepository LocationRepository
-	weatherRepository  WeatherRepository
-	log                *slog.Logger
+	db                *sql.DB
+	weatherProvider   WeatherProvider
+	weatherRepository WeatherRepository
+	log               *slog.Logger
 }
 
-func NewWeatherService(db *sql.DB, weatherProvider WeatherProvider, locationRepository LocationRepository, weatherRepository WeatherRepository, log *slog.Logger) *WeatherService {
+func NewWeatherService(db *sql.DB, weatherProvider WeatherProvider, weatherRepository WeatherRepository, log *slog.Logger) *WeatherService {
 	return &WeatherService{
-		db:                 db,
-		weatherProvider:    weatherProvider,
-		locationRepository: locationRepository,
-		weatherRepository:  weatherRepository,
-		log:                log,
+		db:                db,
+		weatherProvider:   weatherProvider,
+		weatherRepository: weatherRepository,
+		log:               log,
 	}
 }
 
 func (s *WeatherService) GetCurrentWeatherForLocation(ctx context.Context, location string) (*dto.WeatherDTO, error) {
-	weather, err := s.weatherProvider.GetCurrentWeather(location)
+	weather, err := s.weatherProvider.GetCurrentWeather(ctx, location)
 	if err != nil {
 		return nil, err
 	}
-	weatherDto := mapper.WeatherToWeatherDTO(weather.Weather)
+	weatherDto := mapper.WeatherToWeatherDTO(*weather)
 
 	err = sqlutil.WithTx(ctx, s.db, nil, func(tx *sql.Tx) error {
-		loc, errIn := s.locationRepository.FindByName(ctx, tx, weather.Location.Name)
+		lastWeather, errIn := s.weatherRepository.FindLastUpdatedByLocation(ctx, tx, weather.LocationName)
 		if errIn != nil {
 			return errIn
 		}
-
-		var locId int32
-		if loc != nil {
-			locId = loc.Id
-		} else {
-			locId, errIn = s.locationRepository.Save(ctx, tx, &weather.Location)
-			if errIn != nil {
-				return errIn
-			}
-		}
-
-		weather.Weather.LocationId = locId
-		weather.Weather.FetchedAt = time.Now().UTC()
-
-		lastWeather, errIn := s.weatherRepository.FindLastUpdatedByLocation(ctx, tx, weather.Location.Name)
-		if errIn != nil {
-			return errIn
-		}
-		if lastWeather != nil && lastWeather.LastUpdated.Equal(weather.Weather.LastUpdated) {
+		if lastWeather != nil && lastWeather.LastUpdated.Equal(weather.LastUpdated) {
 			s.log.Info("last weather update is already saved")
 			return nil
 		}
 
-		errIn = s.weatherRepository.Save(ctx, tx, &weather.Weather)
+		weather.FetchedAt = time.Now().UTC()
+		errIn = s.weatherRepository.Save(ctx, tx, weather)
 		if errIn != nil {
 			return errIn
 		}

@@ -16,7 +16,6 @@ import (
 type NotificationService struct {
 	db                     *sql.DB
 	weatherProvider        WeatherProvider
-	locationRepository     LocationRepository
 	weatherRepository      WeatherRepository
 	subscriberRepository   SubscriberRepository
 	subscriptionRepository SubscriptionRepository
@@ -28,7 +27,6 @@ type NotificationService struct {
 func NewNotificationService(
 	db *sql.DB,
 	weatherProvider WeatherProvider,
-	locationRepository LocationRepository,
 	weatherRepository WeatherRepository,
 	subscriberRepository SubscriberRepository,
 	subscriptionRepository SubscriptionRepository,
@@ -38,7 +36,6 @@ func NewNotificationService(
 	return &NotificationService{
 		db:                     db,
 		weatherProvider:        weatherProvider,
-		locationRepository:     locationRepository,
 		weatherRepository:      weatherRepository,
 		subscriberRepository:   subscriberRepository,
 		subscriptionRepository: subscriptionRepository,
@@ -48,108 +45,84 @@ func NewNotificationService(
 	}
 }
 
-func (s *NotificationService) SendDailyNotifications(emailData config.EmailData) {
-	s.log.Info("triggered SendDailyNotifications")
-	ctx := context.Background()
+func (s *NotificationService) SendNotifications(ctx context.Context, frequency model.Frequency, emailData config.EmailData) {
+	s.log.Info("triggered SendNotifications", "frequency", frequency)
 
+	var subscriptions []*model.Subscription
 	err := sqlutil.WithTx(ctx, s.db, &sql.TxOptions{ReadOnly: true}, func(tx *sql.Tx) error {
-		subscriptions, errIn := s.subscriptionRepository.FindAllByFrequencyAndConfirmedStatus(ctx, tx, model.Frequency_Daily)
-		if errIn != nil {
-			return errIn
-		}
-
-		if errIn = s.sendNotificationsToAllSubscribers(ctx, tx, subscriptions, emailData); errIn != nil {
-			return errIn
-		}
-
-		return nil
+		var err error
+		subscriptions, err = s.subscriptionRepository.FindAllByFrequencyAndConfirmedStatus(ctx, tx, frequency)
+		return err
 	})
 	if err != nil {
-		s.log.Error("rolled back transaction because of ", "error", err)
+		s.log.Error("failed to fetch subscriptions", "error", err)
 		return
 	}
-	s.log.Info("transaction commited successfully")
+
+	failures := 0
+	for _, sub := range subscriptions {
+		if err := s.processAndSendNotification(ctx, sub, emailData); err != nil {
+			s.log.Error("failed to send notification",
+				"subscriber_id", sub.SubscriberId,
+				"location", sub.LocationName,
+				"error", err,
+			)
+			failures++
+			continue
+		}
+		s.log.Debug("notification sent",
+			"subscriber_id", sub.SubscriberId,
+			"location", sub.LocationName,
+		)
+	}
+
+	s.log.Info("finished sending notifications", "total", len(subscriptions), "failures", failures)
 }
 
-func (s *NotificationService) SendHourlyNotifications(emailData config.EmailData) {
-	s.log.Info("triggered SendHourlyNotifications")
-	ctx := context.Background()
-
-	err := sqlutil.WithTx(ctx, s.db, nil, func(tx *sql.Tx) error {
-		subscriptions, errIn := s.subscriptionRepository.FindAllByFrequencyAndConfirmedStatus(ctx, tx, model.Frequency_Hourly)
-		if errIn != nil {
-			return errIn
-		}
-
-		if errIn = s.sendNotificationsToAllSubscribers(ctx, tx, subscriptions, emailData); errIn != nil {
-			return errIn
-		}
-
-		return nil
-	})
+func (s *NotificationService) processAndSendNotification(ctx context.Context, sub *model.Subscription, emailData config.EmailData) error {
+	subscriber, err := s.subscriberRepository.FindById(ctx, s.db, sub.SubscriberId)
 	if err != nil {
-		s.log.Error("rolled back transaction because of ", "error", err)
-		return
+		return fmt.Errorf("fetch subscriber: %w", err)
 	}
-	s.log.Info("transaction commited successfully")
-}
 
-func (s *NotificationService) sendNotificationsToAllSubscribers(ctx context.Context, tx *sql.Tx, subscriptions []*model.Subscription, emailData config.EmailData) error {
-	for i := 0; i < len(subscriptions); i++ {
-		subscriber, err := s.subscriberRepository.FindById(ctx, tx, subscriptions[i].SubscriberId)
+	token, err := s.tokenRepository.FindBySubscriptionIdAndType(ctx, s.db, sub.Id, model.TokenType_Unsubscribe)
+	if err != nil {
+		return fmt.Errorf("fetch token: %w", err)
+	}
+
+	lastWeather, err := s.weatherRepository.FindLastUpdatedByLocation(ctx, s.db, sub.LocationName)
+	if err != nil {
+		return fmt.Errorf("fetch weather: %w", err)
+	}
+
+	if lastWeather == nil || lastWeather.LastUpdated.Add(15*time.Minute).Before(time.Now()) {
+		weather, err := s.weatherProvider.GetCurrentWeather(ctx, sub.LocationName)
 		if err != nil {
-			return err
+			return fmt.Errorf("update weather: %w", err)
 		}
-		location, err := s.locationRepository.FindById(ctx, tx, subscriptions[i].LocationId)
-		if err != nil {
-			return err
+		weather.FetchedAt = time.Now().UTC()
+		if err := s.weatherRepository.Save(ctx, s.db, weather); err != nil {
+			return fmt.Errorf("save weather: %w", err)
 		}
-		token, err := s.tokenRepository.FindBySubscriptionIdAndType(ctx, tx, subscriptions[i].Id, model.TokenType_Unsubscribe)
-		if err != nil {
-			return err
-		}
-		lastWeather, err := s.weatherRepository.FindLastUpdatedByLocation(ctx, tx, location.Name)
-		if err != nil {
-			return err
-		}
+		lastWeather = weather
+	}
 
-		if lastWeather == nil || lastWeather.LastUpdated.Add(15*time.Minute).Before(time.Now()) {
-			weather, err := s.weatherProvider.GetCurrentWeather(location.Name)
-			if err != nil {
-				return err
-			}
+	email := dto.SimpleEmail{
+		From:    emailData.From,
+		To:      subscriber.Email,
+		Subject: emailData.Subject,
+		Text: fmt.Sprintf(
+			emailData.Text,
+			lastWeather.LocationName,
+			lastWeather.Temperature,
+			lastWeather.Humidity,
+			lastWeather.Description,
+			token.Token,
+		),
+	}
 
-			weather.Weather.LocationId = location.Id
-			weather.Weather.FetchedAt = time.Now().UTC()
-
-			err = s.weatherRepository.Save(ctx, tx, &weather.Weather)
-			if err != nil {
-				return err
-			}
-
-			lastWeather = &weather.Weather
-		}
-
-		email := dto.SimpleEmail{
-			From:    emailData.From,
-			To:      subscriber.Email,
-			Subject: emailData.Subject,
-			Text: fmt.Sprintf(
-				emailData.Text,
-				location.Name,
-				lastWeather.Temperature,
-				lastWeather.Humidity,
-				lastWeather.Description,
-				token.Token,
-			),
-		}
-
-		err = s.emailSender.Send(ctx, email)
-		if err != nil {
-			return err
-		}
-
-		s.log.Info("weather email is send")
+	if err := s.emailSender.Send(ctx, email); err != nil {
+		return fmt.Errorf("send email: %w", err)
 	}
 
 	return nil

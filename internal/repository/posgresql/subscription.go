@@ -18,13 +18,13 @@ func NewSubscriptionRepository() *SubscriptionRepository {
 
 func (r *SubscriptionRepository) Save(ctx context.Context, ex sqlutil.SQLExecutor, subscription *model.Subscription) (int32, error) {
 	const op = "repository.postgresql.subscription.Save"
-	const query = "INSERT INTO subscription (subscriber_id, location_id, frequency, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"
+	const query = "INSERT INTO subscription (subscriber_id, location_name, frequency, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"
 	var id int32
 	err := ex.QueryRowContext(
 		ctx,
 		query,
 		subscription.SubscriberId,
-		subscription.LocationId,
+		subscription.LocationName,
 		subscription.Frequency,
 		subscription.Status,
 		subscription.CreatedAt.UTC(),
@@ -37,27 +37,27 @@ func (r *SubscriptionRepository) Save(ctx context.Context, ex sqlutil.SQLExecuto
 	return id, nil
 }
 
-func (r *SubscriptionRepository) FindBySubscriberIdAndLocationId(ctx context.Context, ex sqlutil.SQLExecutor, subscriberId int32, location_id int32) (*model.Subscription, error) {
-	const op = "repository.postgresql.subscriber.FindBySubscriberIdAndLocationId"
+func (r *SubscriptionRepository) FindBySubscriberIdAndLocationName(ctx context.Context, ex sqlutil.SQLExecutor, subscriberId int32, locationName string) (*model.Subscription, error) {
+	const op = "repository.postgresql.subscription.FindBySubscriberIdAndLocationName"
 	const query = `
 		SELECT 
 			s.id,
 			s.subscriber_id,
-			s.location_id,
+			s.location_name,
 			s.frequency,
 			s.status,
 			s.created_at,
 			s.updated_at
 		FROM subscription s
-		WHERE s.subscriber_id = $1 AND s.location_id = $2
+		WHERE s.subscriber_id = $1 AND s.location_name = $2
 		LIMIT 1;
 	`
 
 	var s model.Subscription
-	err := ex.QueryRowContext(ctx, query, subscriberId, location_id).Scan(
+	err := ex.QueryRowContext(ctx, query, subscriberId, locationName).Scan(
 		&s.Id,
 		&s.SubscriberId,
-		&s.LocationId,
+		&s.LocationName,
 		&s.Frequency,
 		&s.Status,
 		&s.CreatedAt,
@@ -78,7 +78,7 @@ func (r *SubscriptionRepository) FindById(ctx context.Context, ex sqlutil.SQLExe
 		SELECT 
 			s.id,
 			s.subscriber_id,
-			s.location_id,
+			s.location_name,
 			s.frequency,
 			s.status,
 			s.created_at,
@@ -92,7 +92,7 @@ func (r *SubscriptionRepository) FindById(ctx context.Context, ex sqlutil.SQLExe
 	err := ex.QueryRowContext(ctx, query, id).Scan(
 		&s.Id,
 		&s.SubscriberId,
-		&s.LocationId,
+		&s.LocationName,
 		&s.Frequency,
 		&s.Status,
 		&s.CreatedAt,
@@ -126,7 +126,7 @@ func (r *SubscriptionRepository) Update(ctx context.Context, ex sqlutil.SQLExecu
 	const query = `
 		UPDATE subscription
 		SET subscriber_id = $1,
-		    location_id = $2,
+		    location_name = $2,
 		    frequency = $3,
 		    status = $4,
 		    updated_at = $5
@@ -134,7 +134,7 @@ func (r *SubscriptionRepository) Update(ctx context.Context, ex sqlutil.SQLExecu
 		RETURNING 
 		    id,
 		    subscriber_id,
-		    location_id,
+		    location_name,
 		    frequency,
 		    status,
 		    created_at,
@@ -144,7 +144,7 @@ func (r *SubscriptionRepository) Update(ctx context.Context, ex sqlutil.SQLExecu
 	var updated model.Subscription
 	err := ex.QueryRowContext(ctx, query,
 		subscription.SubscriberId,
-		subscription.LocationId,
+		subscription.LocationName,
 		subscription.Frequency,
 		subscription.Status,
 		subscription.UpdatedAt,
@@ -152,7 +152,7 @@ func (r *SubscriptionRepository) Update(ctx context.Context, ex sqlutil.SQLExecu
 	).Scan(
 		&updated.Id,
 		&updated.SubscriberId,
-		&updated.LocationId,
+		&updated.LocationName,
 		&updated.Frequency,
 		&updated.Status,
 		&updated.CreatedAt,
@@ -170,7 +170,7 @@ func (r *SubscriptionRepository) FindAllByFrequencyAndConfirmedStatus(ctx contex
 		SELECT 
 			s.id,
 			s.subscriber_id,
-			s.location_id,
+			s.location_name,
 			s.frequency,
 			s.status,
 			s.created_at,
@@ -195,7 +195,7 @@ func (r *SubscriptionRepository) FindAllByFrequencyAndConfirmedStatus(ctx contex
 		err = rows.Scan(
 			&s.Id,
 			&s.SubscriberId,
-			&s.LocationId,
+			&s.LocationName,
 			&s.Frequency,
 			&s.Status,
 			&s.CreatedAt,

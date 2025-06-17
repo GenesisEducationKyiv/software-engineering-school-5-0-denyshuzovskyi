@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/handler"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/posgresql"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/migrations"
@@ -84,21 +86,22 @@ func main() {
 
 	weatherApiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, &http.Client{}, log)
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
-	locationRepository := posgresql.NewLocationRepository()
 	weatherRepository := posgresql.NewWeatherRepository()
 	subscriberRepository := posgresql.NewSubscriberRepository()
 	subscriptionRepository := posgresql.NewSubscriptionRepository()
 	tokenRepository := posgresql.NewTokenRepository()
-	weatherService := service.NewWeatherService(db, weatherApiClient, locationRepository, weatherRepository, log)
-	subscriptionService := service.NewSubscriptionService(db, weatherApiClient, locationRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
-	notificationService := service.NewNotificationService(db, weatherApiClient, locationRepository, weatherRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, log)
+	weatherService := service.NewWeatherService(db, weatherApiClient, weatherRepository, log)
+	subscriptionService := service.NewSubscriptionService(db, weatherApiClient, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
+	notificationService := service.NewNotificationService(db, weatherApiClient, weatherRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, log)
 	weatherHandler := handler.NewWeatherHandler(weatherService, log)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, validate, log)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	c := cron.New()
 	// daily 09:00
 	_, err = c.AddFunc("0 9 * * *", func() {
-		notificationService.SendDailyNotifications(weatherEmailData)
+		notificationService.SendNotifications(ctx, model.Frequency_Daily, weatherEmailData)
 	})
 	if err != nil {
 		log.Error("failed to schedule notification service", "error", err)
@@ -106,7 +109,7 @@ func main() {
 	}
 	// hourly
 	_, err = c.AddFunc("0 * * * *", func() {
-		notificationService.SendHourlyNotifications(weatherEmailData)
+		notificationService.SendNotifications(ctx, model.Frequency_Hourly, weatherEmailData)
 	})
 	if err != nil {
 		log.Error("failed to schedule notification service", "error", err)
