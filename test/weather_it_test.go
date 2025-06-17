@@ -9,8 +9,13 @@ import (
 	"fmt"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/emailclient"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config/email"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/testutil"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/subscription"
 	"github.com/go-playground/validator/v10"
+	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/mailgun/mailgun-go/v4"
 	"io"
 	"log/slog"
@@ -18,7 +23,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -92,7 +96,6 @@ func TestGetWeatherIT(t *testing.T) {
 
 	currentWeatherData, err := os.ReadFile("./test_data/current_weather_success_resp.json")
 	require.NoError(t, err)
-
 	testClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
@@ -143,42 +146,61 @@ func TestGetWeatherIT(t *testing.T) {
 	require.Equal(t, expectedDesc, actualWeatherFromDB.Description)
 }
 
-func TestSubConfirmUnsubIT(t *testing.T) {
+func TestWholeCycleIT(t *testing.T) {
 	env := SetupTestEnv(t)
 	defer env.Cleanup()
 
-	form := url.Values{}
-	form.Set("email", "test@example.com")
-	form.Set("city", "Kyiv")
-	form.Set("frequency", "daily")
+	// EmailData
+	var cfg config.Config
+	err := cleanenv.ReadConfig("./../config/config.yaml", &cfg)
+	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/subscribe", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	emailDataMap := email.PrepareEmailData(&cfg)
+	confirmEmailData, confOk := emailDataMap["confirmation"]
+	require.True(t, confOk)
+	confirmSuccessEmailData, confSuccessOk := emailDataMap["confirmation-successful"]
+	require.True(t, confSuccessOk)
+	weatherEmailData, weatherOk := emailDataMap["weather"]
+	require.True(t, weatherOk)
+	unsubEmailData, unsubOk := emailDataMap["unsubscribe"]
+	require.True(t, unsubOk)
 
-	rr := httptest.NewRecorder()
-
+	// Client-interceptor for weatherApiClient
 	currentWeatherData, err := os.ReadFile("./test_data/current_weather_success_resp.json")
 	require.NoError(t, err)
-	testClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
+	waClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(bytes.NewReader(currentWeatherData)),
 			Header:     make(http.Header),
 		}, nil
 	})
-	weatherApiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", testClient, env.Log)
+	weatherApiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", waClient, env.Log)
 
+	// Client-interceptor for emailClient
 	mailgunRespData, err := os.ReadFile("./test_data/mailgun_success_resp.json")
 	require.NoError(t, err)
-
-	var sentText string
-	clientForMailgun := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
+	var sentEmails []dto.SimpleEmail
+	mgClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
 		if req.URL.Path == "/v3/domain/messages" && req.Method == http.MethodPost {
 			err := req.ParseMultipartForm(10 << 20) // 10 MB max memory
 			require.NoError(t, err)
-			sentTextArr := req.MultipartForm.Value["text"]
-			require.NotEmpty(t, sentTextArr)
-			sentText = sentTextArr[0]
+
+			f := req.MultipartForm.Value
+
+			require.NotEmpty(t, f["from"])
+			require.NotEmpty(t, f["to"])
+			require.NotEmpty(t, f["subject"])
+			require.NotEmpty(t, f["text"])
+
+			e := dto.SimpleEmail{
+				From:    f["from"][0],
+				To:      f["to"][0],
+				Subject: f["subject"][0],
+				Text:    f["text"][0],
+			}
+
+			sentEmails = append(sentEmails, e)
 		}
 
 		return &http.Response{
@@ -188,31 +210,14 @@ func TestSubConfirmUnsubIT(t *testing.T) {
 		}, nil
 	})
 	mailgunClient := mailgun.NewMailgun("domain", "key")
-	mailgunClient.SetClient(clientForMailgun)
+	mailgunClient.SetClient(mgClient)
 	emailClient := emailclient.NewEmailClient(mailgunClient)
 
+	// Repositories, Services, Handlers
+	weatherRepository := postgresql.NewWeatherRepository()
 	subscriberRepository := postgresql.NewSubscriberRepository()
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
-
-	confirmEmailData := config.EmailData{
-		Name:    "confirmation",
-		Subject: "Confirm subscription",
-		Text:    "To confirm your subscription use %s",
-		From:    "sender@test.com",
-	}
-	confirmSuccessEmailData := config.EmailData{
-		Name:    "confirmation-successful",
-		Subject: "Confirmation successful",
-		Text:    "You have successfully subscribed for weather update. To unsubscribe use %s",
-		From:    "sender@test.com",
-	}
-	unsubEmailData := config.EmailData{
-		Name:    "unsubscribe",
-		Subject: "End of subscription",
-		Text:    "You have successfully unsubscribed",
-		From:    "sender@test.com",
-	}
 
 	subscriptionService := subscription.NewSubscriptionService(
 		env.DB, weatherApiClient,
@@ -224,52 +229,52 @@ func TestSubConfirmUnsubIT(t *testing.T) {
 		confirmSuccessEmailData,
 		unsubEmailData,
 		env.Log)
+	notificationService := notification.NewNotificationService(env.DB, weatherApiClient, weatherRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, env.Log)
+
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, validator.New(), env.Log)
 
-	subscriptionHandler.Subscribe(rr, req)
-
-	require.Equal(t, http.StatusOK, rr.Code)
-
-	require.NotEmpty(t, sentText)
-
-	// Use regex to extract the token (UUID)
-	re := regexp.MustCompile(`[0-9a-fA-F\-]{36}`) // UUID regex
-	matches := re.FindStringSubmatch(sentText)
-	require.NotEmpty(t, matches)
-	token := matches[0]
-
-	// Now use 'token' for your next test steps (e.g., confirm)
-	fmt.Println("Extracted confirmation token:", token)
-
-	//CONFIRM
-	//req = httptest.NewRequest(http.MethodGet, "/confirm", nil)
-	//req.SetPathValue("token", token)
-	//subscriptionHandler.Confirm(rr, req)
-
+	// Multiplexer
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /subscribe", subscriptionHandler.Subscribe)
 	mux.HandleFunc("GET /confirm/{token}", subscriptionHandler.Confirm)
 	mux.HandleFunc("GET /unsubscribe/{token}", subscriptionHandler.Unsubscribe)
 
-	req = httptest.NewRequest(http.MethodGet, "/confirm/"+token, nil)
+	// Subscribe
+	subsForm := url.Values{}
+	subsForm.Set("email", "test@example.com")
+	subsForm.Set("city", "Kyiv")
+	subsForm.Set("frequency", "daily")
+
+	req := httptest.NewRequest(http.MethodPost, "/subscribe", strings.NewReader(subsForm.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	mux.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	lastToken, err := testutil.ExtractFirstUUIDFromText(sentEmails[len(sentEmails)-1].Text)
+	require.NoError(t, err)
+
+	// Confirm
+	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/confirm/%s", lastToken), nil)
 	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
-
 	require.Equal(t, http.StatusOK, rr.Code)
+	lastToken, err = testutil.ExtractFirstUUIDFromText(sentEmails[len(sentEmails)-1].Text)
+	require.NoError(t, err)
 
-	require.NotEmpty(t, sentText)
+	// Imitate notification job trigger
+	sentEmails = sentEmails[:0]
+	require.Empty(t, sentEmails)
+	notificationService.SendNotifications(t.Context(), model.Frequency_Hourly, weatherEmailData)
+	require.Empty(t, sentEmails)
+	notificationService.SendNotifications(t.Context(), model.Frequency_Daily, weatherEmailData)
+	require.Len(t, sentEmails, 1)
+	require.Equal(t, weatherEmailData.Subject, sentEmails[0].Subject)
 
-	matches = re.FindStringSubmatch(sentText)
-	require.NotEmpty(t, matches)
-	token = matches[0]
-
-	fmt.Println("Extracted unsub token:", token)
-
-	//unsub
-	req = httptest.NewRequest(http.MethodGet, "/unsubscribe/"+token, nil)
+	// Unsubscribe
+	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/unsubscribe/%s", lastToken), nil)
 	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
-
 	require.Equal(t, http.StatusOK, rr.Code)
-	require.NotEmpty(t, sentText)
-	require.Equal(t, unsubEmailData.Text, sentText)
+	require.Equal(t, unsubEmailData.Text, sentEmails[len(sentEmails)-1].Text)
 }

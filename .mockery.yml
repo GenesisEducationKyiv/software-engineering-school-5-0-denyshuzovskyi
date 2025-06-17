@@ -11,6 +11,12 @@ require-template-schema-exists: true
 template: testify
 template-schema: '{{.Template}}.schema.json'
 packages:
-  github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service:
+  github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather:
+    config:
+      all: true
+  github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/subscription:
+    config:
+      all: true
+  github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/notification:
     config:
       all: true

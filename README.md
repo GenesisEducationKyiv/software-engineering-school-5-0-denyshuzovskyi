@@ -19,7 +19,7 @@ https://github.com/mykhailo-hrynko/se-school-5
 
 #### Mockery
 ```shell
-    mockery init nimbus-notify/internal/service
+    mockery init github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather
     mockery
 ```
 
