@@ -1,4 +1,4 @@
-package service
+package subscription
 
 import (
 	"context"
@@ -16,6 +16,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type WeatherProvider interface {
+	GetCurrentWeather(context.Context, string) (*model.Weather, error)
+}
+
 type SubscriberRepository interface {
 	Save(context.Context, sqlutil.SQLExecutor, *model.Subscriber) (int32, error)
 	FindByEmail(context.Context, sqlutil.SQLExecutor, string) (*model.Subscriber, error)
@@ -28,13 +32,15 @@ type SubscriptionRepository interface {
 	FindById(context.Context, sqlutil.SQLExecutor, int32) (*model.Subscription, error)
 	DeleteById(context.Context, sqlutil.SQLExecutor, int32) error
 	Update(context.Context, sqlutil.SQLExecutor, *model.Subscription) (*model.Subscription, error)
-	FindAllByFrequencyAndConfirmedStatus(context.Context, sqlutil.SQLExecutor, model.Frequency) ([]*model.Subscription, error)
 }
 
 type TokenRepository interface {
 	Save(context.Context, sqlutil.SQLExecutor, *model.Token) error
 	FindByToken(context.Context, sqlutil.SQLExecutor, string) (*model.Token, error)
-	FindBySubscriptionIdAndType(context.Context, sqlutil.SQLExecutor, int32, model.TokenType) (*model.Token, error)
+}
+
+type EmailSender interface {
+	Send(context.Context, dto.SimpleEmail) error
 }
 
 type SubscriptionService struct {

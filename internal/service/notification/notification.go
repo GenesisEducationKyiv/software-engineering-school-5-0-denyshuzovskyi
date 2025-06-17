@@ -1,4 +1,4 @@
-package service
+package notification
 
 import (
 	"context"
@@ -12,6 +12,31 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/sqlutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 )
+
+type WeatherProvider interface {
+	GetCurrentWeather(context.Context, string) (*model.Weather, error)
+}
+
+type WeatherRepository interface {
+	Save(context.Context, sqlutil.SQLExecutor, *model.Weather) error
+	FindLastUpdatedByLocation(context.Context, sqlutil.SQLExecutor, string) (*model.Weather, error)
+}
+
+type SubscriberRepository interface {
+	FindById(context.Context, sqlutil.SQLExecutor, int32) (*model.Subscriber, error)
+}
+
+type SubscriptionRepository interface {
+	FindAllByFrequencyAndConfirmedStatus(context.Context, sqlutil.SQLExecutor, model.Frequency) ([]*model.Subscription, error)
+}
+
+type TokenRepository interface {
+	FindBySubscriptionIdAndType(context.Context, sqlutil.SQLExecutor, int32, model.TokenType) (*model.Token, error)
+}
+
+type EmailSender interface {
+	Send(context.Context, dto.SimpleEmail) error
+}
 
 type NotificationService struct {
 	db                     *sql.DB

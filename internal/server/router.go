@@ -2,11 +2,19 @@ package server
 
 import (
 	"net/http"
-
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server/handler"
 )
 
-func InitMux(weatherHandler *handler.WeatherHandler, subscriptionHandler *handler.SubscriptionHandler) *http.ServeMux {
+type weatherHandler interface {
+	GetCurrentWeather(http.ResponseWriter, *http.Request)
+}
+
+type subscriptionHandler interface {
+	Subscribe(http.ResponseWriter, *http.Request)
+	Confirm(http.ResponseWriter, *http.Request)
+	Unsubscribe(http.ResponseWriter, *http.Request)
+}
+
+func InitMux(weatherHandler weatherHandler, subscriptionHandler subscriptionHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /weather", weatherHandler.GetCurrentWeather)
 	mux.HandleFunc("POST /subscribe", subscriptionHandler.Subscribe)

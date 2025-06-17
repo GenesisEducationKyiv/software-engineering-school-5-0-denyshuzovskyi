@@ -6,11 +6,14 @@ import (
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service"
 	"github.com/robfig/cron/v3"
 )
 
-func StartCronJobs(ctx context.Context, notificationService *service.NotificationService, weatherEmailData config.EmailData, log *slog.Logger) error {
+type notificationService interface {
+	SendNotifications(context.Context, model.Frequency, config.EmailData)
+}
+
+func StartCronJobs(ctx context.Context, notificationService notificationService, weatherEmailData config.EmailData, log *slog.Logger) error {
 	c := cron.New()
 
 	// daily 09:00
@@ -28,6 +31,7 @@ func StartCronJobs(ctx context.Context, notificationService *service.Notificatio
 		log.Error("failed to schedule hourly notification service", "error", err)
 		return err
 	}
+
 	c.Start()
 
 	return nil

@@ -29,7 +29,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/logger/noophandler"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/postgresql"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server/handler"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/require"
@@ -102,7 +102,7 @@ func TestGetWeatherIT(t *testing.T) {
 
 	weatherApiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", testClient, env.Log)
 	weatherRepository := postgresql.NewWeatherRepository()
-	weatherService := service.NewWeatherService(env.DB, weatherApiClient, weatherRepository, env.Log)
+	weatherService := weather.NewWeatherService(env.DB, weatherApiClient, weatherRepository, env.Log)
 	weatherHandler := handler.NewWeatherHandler(weatherService, env.Log)
 
 	city := "Kyiv"
