@@ -3,39 +3,48 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/emailclient"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/handler"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/posgresql"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/migrations"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config/email"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/cron"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/database"
+	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/postgresql"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server/handler"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/notification"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/subscription"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather"
 	"github.com/go-playground/validator/v10"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mailgun/mailgun-go/v4"
-	"github.com/robfig/cron/v3"
 )
 
 func main() {
 	cfg := config.ReadConfig("./config/config.yaml")
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	if err := runApp(cfg, log); err != nil {
+		log.Error("fatal error", "error", err)
+		os.Exit(1)
+	}
+}
+
+func runApp(cfg *config.Config, log *slog.Logger) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	validate := validator.New()
 
-	db, err := sql.Open("pgx", cfg.Datasource.Url)
+	db, err := database.InitDB(ctx, cfg.Datasource.Url, log)
 	if err != nil {
-		log.Error("unable to open database", "error", err)
-		os.Exit(1)
+		return err
 	}
 	defer func(db *sql.DB) {
 		err := db.Close()
@@ -44,107 +53,46 @@ func main() {
 		}
 	}(db)
 
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
-	if err != nil {
-		log.Error("unable to acquire database driver", "error", err)
-		os.Exit(1)
+	if err := database.RunMigrations(db, ".", log); err != nil {
+		return err
 	}
 
-	d, err := iofs.New(migrations.Files, ".")
-	if err != nil {
-		log.Error("unable to set up driver for io/fs#FS", "error", err)
-		os.Exit(1)
-	}
-
-	m, err := migrate.NewWithInstance("iofs", d, "postgres", driver)
-	if err != nil {
-		log.Error("unable to set up migrations", "error", err)
-		os.Exit(1)
-	}
-
-	err = m.Up()
-	if err != nil {
-		if errors.Is(err, migrate.ErrNoChange) {
-			log.Info("all migrations have already been applied")
-		} else {
-			log.Error("unable to apply migrations", "error", err)
-			os.Exit(1)
-		}
-	} else {
-		log.Info("migration completed successfully")
-	}
-
-	emailDataMap := prepareEmailData(cfg)
+	emailDataMap := email.PrepareEmailData(cfg)
 	confirmEmailData, confOk := emailDataMap["confirmation"]
 	confirmSuccessEmailData, confSuccessOk := emailDataMap["confirmation-successful"]
 	weatherEmailData, weatherOk := emailDataMap["weather"]
 	unsubEmailData, unsubOk := emailDataMap["unsubscribe"]
 	if !confOk || !confSuccessOk || !weatherOk || !unsubOk {
 		log.Error("cannot prepare email data")
-		os.Exit(1)
+		return commonerrors.ErrInvalidEmailData
 	}
 
 	weatherApiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, &http.Client{}, log)
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
-	weatherRepository := posgresql.NewWeatherRepository()
-	subscriberRepository := posgresql.NewSubscriberRepository()
-	subscriptionRepository := posgresql.NewSubscriptionRepository()
-	tokenRepository := posgresql.NewTokenRepository()
-	weatherService := service.NewWeatherService(db, weatherApiClient, weatherRepository, log)
-	subscriptionService := service.NewSubscriptionService(db, weatherApiClient, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
-	notificationService := service.NewNotificationService(db, weatherApiClient, weatherRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, log)
+
+	weatherRepository := postgresql.NewWeatherRepository()
+	subscriberRepository := postgresql.NewSubscriberRepository()
+	subscriptionRepository := postgresql.NewSubscriptionRepository()
+	tokenRepository := postgresql.NewTokenRepository()
+
+	weatherService := weather.NewWeatherService(db, weatherApiClient, weatherRepository, log)
+	subscriptionService := subscription.NewSubscriptionService(db, weatherApiClient, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
+	notificationService := notification.NewNotificationService(db, weatherApiClient, weatherRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, log)
+
 	weatherHandler := handler.NewWeatherHandler(weatherService, log)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, validate, log)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	c := cron.New()
-	// daily 09:00
-	_, err = c.AddFunc("0 9 * * *", func() {
-		notificationService.SendNotifications(ctx, model.Frequency_Daily, weatherEmailData)
-	})
-	if err != nil {
-		log.Error("failed to schedule notification service", "error", err)
-		os.Exit(1)
+	if err = cron.StartCronJobs(ctx, notificationService, weatherEmailData, log); err != nil {
+		return err
 	}
-	// hourly
-	_, err = c.AddFunc("0 * * * *", func() {
-		notificationService.SendNotifications(ctx, model.Frequency_Hourly, weatherEmailData)
-	})
-	if err != nil {
-		log.Error("failed to schedule notification service", "error", err)
-		os.Exit(1)
-	}
-	c.Start()
 
-	router := http.NewServeMux()
-	router.HandleFunc("GET /weather", weatherHandler.GetCurrentWeather)
-	router.HandleFunc("POST /subscribe", subscriptionHandler.Subscribe)
-	router.HandleFunc("GET /confirm/{token}", subscriptionHandler.Confirm)
-	router.HandleFunc("GET /unsubscribe/{token}", subscriptionHandler.Unsubscribe)
-
-	server := http.Server{
-		Addr:    fmt.Sprintf("%s:%s", cfg.HTTPServer.Host, cfg.HTTPServer.Port),
+	router := server.InitRouter(weatherHandler, subscriptionHandler)
+	srv := &http.Server{
+		Addr:    net.JoinHostPort(cfg.HTTPServer.Host, cfg.HTTPServer.Port),
 		Handler: router,
 	}
 
-	log.Info("starting server", "host", cfg.HTTPServer.Host, "port", cfg.HTTPServer.Port)
+	log.Info("starting http server", "addr", srv.Addr)
 
-	err = server.ListenAndServe()
-	if err != nil {
-		log.Error("failed to start server", "error", err)
-		return
-	}
-}
-
-func prepareEmailData(cfg *config.Config) map[string]config.EmailData {
-	emailDataMap := make(map[string]config.EmailData)
-
-	for _, email := range cfg.Emails {
-		memail := email
-		memail.From = cfg.EmailService.Sender
-		emailDataMap[memail.Name] = memail
-	}
-
-	return emailDataMap
+	return srv.ListenAndServe()
 }
