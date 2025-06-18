@@ -19,8 +19,8 @@ https://github.com/mykhailo-hrynko/se-school-5
 
 #### Mockery
 ```shell
-    mockery init github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather
-    mockery
+  mockery init github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather
+  mockery
 ```
 
 #### Tests
