@@ -13,7 +13,7 @@ type notificationService interface {
 	SendNotifications(context.Context, model.Frequency, config.EmailData)
 }
 
-func StartCronJobs(ctx context.Context, notificationService notificationService, weatherEmailData config.EmailData, log *slog.Logger) error {
+func SetUpCronJobs(ctx context.Context, notificationService notificationService, weatherEmailData config.EmailData, log *slog.Logger) (*cron.Cron, error) {
 	c := cron.New()
 
 	// daily 09:00
@@ -21,7 +21,7 @@ func StartCronJobs(ctx context.Context, notificationService notificationService,
 		notificationService.SendNotifications(ctx, model.Frequency_Daily, weatherEmailData)
 	}); err != nil {
 		log.Error("failed to schedule daily notification service", "error", err)
-		return err
+		return nil, err
 	}
 
 	// hourly
@@ -29,10 +29,8 @@ func StartCronJobs(ctx context.Context, notificationService notificationService,
 		notificationService.SendNotifications(ctx, model.Frequency_Hourly, weatherEmailData)
 	}); err != nil {
 		log.Error("failed to schedule hourly notification service", "error", err)
-		return err
+		return nil, err
 	}
 
-	c.Start()
-
-	return nil
+	return c, nil
 }

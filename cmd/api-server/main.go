@@ -82,9 +82,12 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 	weatherHandler := handler.NewWeatherHandler(weatherService, log)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, validate, log)
 
-	if err = cron.StartCronJobs(ctx, notificationService, weatherEmailData, log); err != nil {
+	cron, err := cron.SetUpCronJobs(ctx, notificationService, weatherEmailData, log)
+	if err != nil {
 		return err
 	}
+	cron.Start()
+	defer cron.Stop()
 
 	mux := server.InitMux(weatherHandler, subscriptionHandler)
 	srv := &http.Server{
