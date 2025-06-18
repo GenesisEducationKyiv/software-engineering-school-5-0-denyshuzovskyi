@@ -1,4 +1,4 @@
-package service
+package weather
 
 import (
 	"context"
@@ -11,6 +11,10 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/mapper"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 )
+
+type WeatherProvider interface {
+	GetCurrentWeather(context.Context, string) (*model.Weather, error)
+}
 
 type WeatherRepository interface {
 	Save(context.Context, sqlutil.SQLExecutor, *model.Weather) error
