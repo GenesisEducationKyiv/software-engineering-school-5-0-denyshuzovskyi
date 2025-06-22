@@ -17,7 +17,7 @@ import (
 )
 
 type WeatherProvider interface {
-	GetCurrentWeather(context.Context, string) (*model.Weather, error)
+	GetCurrentWeather(context.Context, string) (*dto.WeatherWithLocationDTO, error)
 }
 
 type SubscriberRepository interface {
@@ -84,7 +84,7 @@ func NewSubscriptionService(
 
 func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.SubscriptionRequest) error {
 	err := sqlutil.WithTx(ctx, s.db, nil, func(tx *sql.Tx) error {
-		weather, errIn := s.weatherProvider.GetCurrentWeather(ctx, subReq.City)
+		weatherWithLocationDTO, errIn := s.weatherProvider.GetCurrentWeather(ctx, subReq.City)
 		if errIn != nil {
 			if errors.Is(errIn, commonerrors.ErrLocationNotFound) {
 				return errIn
@@ -111,7 +111,7 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.Subscrip
 			}
 		}
 
-		subscription, errIn := s.subscriptionRepository.FindBySubscriberIdAndLocationName(ctx, tx, subscriberId, weather.LocationName)
+		subscription, errIn := s.subscriptionRepository.FindBySubscriberIdAndLocationName(ctx, tx, subscriberId, weatherWithLocationDTO.Location.Name)
 		if errIn != nil {
 			return errIn
 		}
@@ -122,7 +122,7 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.Subscrip
 		subscription = &model.Subscription{
 			Id:           0,
 			SubscriberId: subscriberId,
-			LocationName: weather.LocationName,
+			LocationName: weatherWithLocationDTO.Location.Name,
 			Frequency:    model.Frequency(subReq.Frequency),
 			Status:       model.SubscriptionStatus_Pending,
 			CreatedAt:    time.Now().UTC(),

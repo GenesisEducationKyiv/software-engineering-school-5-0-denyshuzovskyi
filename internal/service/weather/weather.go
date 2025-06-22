@@ -13,7 +13,7 @@ import (
 )
 
 type WeatherProvider interface {
-	GetCurrentWeather(context.Context, string) (*model.Weather, error)
+	GetCurrentWeather(context.Context, string) (*dto.WeatherWithLocationDTO, error)
 }
 
 type WeatherRepository interface {
@@ -38,11 +38,11 @@ func NewWeatherService(db *sql.DB, weatherProvider WeatherProvider, weatherRepos
 }
 
 func (s *WeatherService) GetCurrentWeatherForLocation(ctx context.Context, location string) (*dto.WeatherDTO, error) {
-	weather, err := s.weatherProvider.GetCurrentWeather(ctx, location)
+	weatherWithLocationDTO, err := s.weatherProvider.GetCurrentWeather(ctx, location)
 	if err != nil {
 		return nil, err
 	}
-	weatherDto := mapper.WeatherToWeatherDTO(*weather)
+	weather := mapper.WeatherWithLocationDTOToWeather(*weatherWithLocationDTO)
 
 	err = sqlutil.WithTx(ctx, s.db, nil, func(tx *sql.Tx) error {
 		lastWeather, errIn := s.weatherRepository.FindLastUpdatedByLocation(ctx, tx, weather.LocationName)
@@ -55,7 +55,7 @@ func (s *WeatherService) GetCurrentWeatherForLocation(ctx context.Context, locat
 		}
 
 		weather.FetchedAt = time.Now().UTC()
-		errIn = s.weatherRepository.Save(ctx, tx, weather)
+		errIn = s.weatherRepository.Save(ctx, tx, &weather)
 		if errIn != nil {
 			return errIn
 		}
@@ -67,6 +67,7 @@ func (s *WeatherService) GetCurrentWeatherForLocation(ctx context.Context, locat
 	} else {
 		s.log.Info("transaction commited successfully")
 	}
+	weatherDto := mapper.WeatherToWeatherDTO(weather)
 
 	return &weatherDto, nil
 }

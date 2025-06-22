@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"path"
 
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 )
 
 type Client struct {
@@ -29,7 +29,7 @@ func NewClient(baseURL, apiKey string, client *http.Client, log *slog.Logger) *C
 	}
 }
 
-func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*model.Weather, error) {
+func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*dto.WeatherWithLocationDTO, error) {
 	u, err := url.Parse(c.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse url: %w", err)
@@ -71,6 +71,6 @@ func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*model
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
-	weather := CurrentWeatherToWeather(currentWeather)
-	return &weather, nil
+	weatherWithLocationDTO := CurrentWeatherToWeatherWithLocationDTO(currentWeather)
+	return &weatherWithLocationDTO, nil
 }

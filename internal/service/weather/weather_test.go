@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/logger/noophandler"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/mapper"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -31,15 +32,20 @@ func TestWeatherService_GetCurrentWeatherForLocation_Twice(t *testing.T) {
 	location := "Kyiv"
 
 	weatherProviderMock := NewMockWeatherProvider(t)
-	weatherToReturn := model.Weather{
-		LocationName: location,
-		LastUpdated:  time.Now().UTC(),
-		FetchedAt:    time.Unix(0, 0),
-		Temperature:  float32(23),
-		Humidity:     float32(43),
-		Description:  "Enjoy",
+	weatherWithLocationDTOToReturn := dto.WeatherWithLocationDTO{
+		Weather: dto.WeatherDTO{
+			Temperature: float32(23),
+			Humidity:    float32(43),
+			Description: "Enjoy",
+		},
+		Location: dto.Location{
+			Name: location,
+		},
+		LastUpdated: time.Now().UTC().Unix(),
 	}
-	weatherProviderMock.EXPECT().GetCurrentWeather(ctx, location).Return(&weatherToReturn, nil).Twice()
+	weatherToReturn := mapper.WeatherWithLocationDTOToWeather(weatherWithLocationDTOToReturn)
+
+	weatherProviderMock.EXPECT().GetCurrentWeather(ctx, location).Return(&weatherWithLocationDTOToReturn, nil).Twice()
 
 	weatherRepositoryMock := NewMockWeatherRepository(t)
 	weatherRepositoryMock.EXPECT().FindLastUpdatedByLocation(ctx, mock.AnythingOfType("*sql.Tx"), location).Return(nil, nil).Once()
@@ -55,9 +61,9 @@ func TestWeatherService_GetCurrentWeatherForLocation_Twice(t *testing.T) {
 		require.NoError(t, err)
 
 		delta := 0.01
-		require.InDelta(t, weatherToReturn.Temperature, weatherDTO.Temperature, delta)
-		require.InDelta(t, weatherToReturn.Humidity, weatherDTO.Humidity, delta)
-		require.Equal(t, weatherToReturn.Description, weatherDTO.Description)
+		require.InDelta(t, weatherWithLocationDTOToReturn.Weather.Temperature, weatherDTO.Temperature, delta)
+		require.InDelta(t, weatherWithLocationDTOToReturn.Weather.Humidity, weatherDTO.Humidity, delta)
+		require.Equal(t, weatherWithLocationDTOToReturn.Weather.Description, weatherDTO.Description)
 	}
 
 	err = sqlmock.ExpectationsWereMet()

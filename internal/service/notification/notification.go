@@ -10,11 +10,12 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/sqlutil"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/mapper"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 )
 
 type WeatherProvider interface {
-	GetCurrentWeather(context.Context, string) (*model.Weather, error)
+	GetCurrentWeather(context.Context, string) (*dto.WeatherWithLocationDTO, error)
 }
 
 type WeatherRepository interface {
@@ -121,15 +122,16 @@ func (s *NotificationService) processAndSendNotification(ctx context.Context, su
 	}
 
 	if lastWeather == nil || lastWeather.LastUpdated.Add(15*time.Minute).Before(time.Now()) {
-		weather, err := s.weatherProvider.GetCurrentWeather(ctx, sub.LocationName)
+		weatherWithLocationDTO, err := s.weatherProvider.GetCurrentWeather(ctx, sub.LocationName)
 		if err != nil {
 			return fmt.Errorf("update weather: %w", err)
 		}
+		weather := mapper.WeatherWithLocationDTOToWeather(*weatherWithLocationDTO)
 		weather.FetchedAt = time.Now().UTC()
-		if err := s.weatherRepository.Save(ctx, s.db, weather); err != nil {
+		if err := s.weatherRepository.Save(ctx, s.db, &weather); err != nil {
 			return fmt.Errorf("save weather: %w", err)
 		}
-		lastWeather = weather
+		lastWeather = &weather
 	}
 
 	email := dto.SimpleEmail{

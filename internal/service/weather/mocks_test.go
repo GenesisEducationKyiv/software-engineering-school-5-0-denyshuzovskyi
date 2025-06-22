@@ -7,6 +7,7 @@ package weather
 import (
 	"context"
 
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/sqlutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 	mock "github.com/stretchr/testify/mock"
@@ -40,23 +41,23 @@ func (_m *MockWeatherProvider) EXPECT() *MockWeatherProvider_Expecter {
 }
 
 // GetCurrentWeather provides a mock function for the type MockWeatherProvider
-func (_mock *MockWeatherProvider) GetCurrentWeather(context1 context.Context, s string) (*model.Weather, error) {
+func (_mock *MockWeatherProvider) GetCurrentWeather(context1 context.Context, s string) (*dto.WeatherWithLocationDTO, error) {
 	ret := _mock.Called(context1, s)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetCurrentWeather")
 	}
 
-	var r0 *model.Weather
+	var r0 *dto.WeatherWithLocationDTO
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*model.Weather, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*dto.WeatherWithLocationDTO, error)); ok {
 		return returnFunc(context1, s)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *model.Weather); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *dto.WeatherWithLocationDTO); ok {
 		r0 = returnFunc(context1, s)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*model.Weather)
+			r0 = ret.Get(0).(*dto.WeatherWithLocationDTO)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
@@ -97,12 +98,12 @@ func (_c *MockWeatherProvider_GetCurrentWeather_Call) Run(run func(context1 cont
 	return _c
 }
 
-func (_c *MockWeatherProvider_GetCurrentWeather_Call) Return(weather *model.Weather, err error) *MockWeatherProvider_GetCurrentWeather_Call {
-	_c.Call.Return(weather, err)
+func (_c *MockWeatherProvider_GetCurrentWeather_Call) Return(weatherWithLocationDTO *dto.WeatherWithLocationDTO, err error) *MockWeatherProvider_GetCurrentWeather_Call {
+	_c.Call.Return(weatherWithLocationDTO, err)
 	return _c
 }
 
-func (_c *MockWeatherProvider_GetCurrentWeather_Call) RunAndReturn(run func(context1 context.Context, s string) (*model.Weather, error)) *MockWeatherProvider_GetCurrentWeather_Call {
+func (_c *MockWeatherProvider_GetCurrentWeather_Call) RunAndReturn(run func(context1 context.Context, s string) (*dto.WeatherWithLocationDTO, error)) *MockWeatherProvider_GetCurrentWeather_Call {
 	_c.Call.Return(run)
 	return _c
 }
