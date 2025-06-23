@@ -32,6 +32,8 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/subscription"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weatherupd"
+	nimbusvalidator "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
 	"github.com/go-playground/validator/v10"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/ilyakaznacheev/cleanenv"
@@ -106,7 +108,9 @@ func TestGetWeatherIT(t *testing.T) {
 
 	weatherApiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", testClient, env.Log)
 	weatherRepository := postgresql.NewWeatherRepository()
-	weatherService := weather.NewWeatherService(env.DB, weatherApiClient, weatherRepository, env.Log)
+	validate := validator.New()
+	locationValidator := nimbusvalidator.NewLocationValidator(validate)
+	weatherService := weather.NewWeatherService(env.DB, locationValidator, weatherApiClient, weatherRepository, env.Log)
 	weatherHandler := handler.NewWeatherHandler(weatherService, env.Log)
 
 	city := "Kyiv"
@@ -146,7 +150,7 @@ func TestGetWeatherIT(t *testing.T) {
 	require.Equal(t, expectedDesc, actualWeatherFromDB.Description)
 }
 
-func TestWholeCycleIT(t *testing.T) {
+func TestFullCycleIT(t *testing.T) {
 	env := SetupTestEnv(t)
 	defer env.Cleanup()
 
@@ -219,8 +223,12 @@ func TestWholeCycleIT(t *testing.T) {
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
 
+	validate := validator.New()
+	subscriptionValidator := nimbusvalidator.NewSubscriptionValidator(validate)
 	subscriptionService := subscription.NewSubscriptionService(
-		env.DB, weatherApiClient,
+		env.DB,
+		subscriptionValidator,
+		weatherApiClient,
 		subscriberRepository,
 		subscriptionRepository,
 		tokenRepository,
@@ -229,9 +237,12 @@ func TestWholeCycleIT(t *testing.T) {
 		confirmSuccessEmailData,
 		unsubEmailData,
 		env.Log)
-	notificationService := notification.NewNotificationService(env.DB, weatherApiClient, weatherRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, env.Log)
+	notificationService := notification.NewNotificationService(emailClient)
+	locationValidator := nimbusvalidator.NewLocationValidator(validate)
+	weatherService := weather.NewWeatherService(env.DB, locationValidator, weatherApiClient, weatherRepository, env.Log)
+	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, env.Log)
 
-	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, validator.New(), env.Log)
+	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, env.Log)
 
 	// Multiplexer
 	mux := http.NewServeMux()
@@ -265,9 +276,9 @@ func TestWholeCycleIT(t *testing.T) {
 	// Imitate notification job trigger
 	sentEmails = sentEmails[:0]
 	require.Empty(t, sentEmails)
-	notificationService.SendNotifications(t.Context(), model.Frequency_Hourly, weatherEmailData)
+	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Hourly, weatherEmailData)
 	require.Empty(t, sentEmails)
-	notificationService.SendNotifications(t.Context(), model.Frequency_Daily, weatherEmailData)
+	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Daily, weatherEmailData)
 	require.Len(t, sentEmails, 1)
 	require.Equal(t, weatherEmailData.Subject, sentEmails[0].Subject)
 

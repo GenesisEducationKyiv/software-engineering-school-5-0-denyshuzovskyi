@@ -12,6 +12,8 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/logger/noophandler"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/mapper"
+	nimbusvalidtor "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
+	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -23,13 +25,11 @@ func TestWeatherService_GetCurrentWeatherForLocation_Twice(t *testing.T) {
 		_ = db.Close()
 	}(db)
 
-	sqlmock.ExpectBegin()
-	sqlmock.ExpectCommit()
-	sqlmock.ExpectBegin()
-	sqlmock.ExpectCommit()
-
 	ctx := t.Context()
 	location := "Kyiv"
+
+	weatherRepositoryMock := NewMockWeatherRepository(t)
+	weatherRepositoryMock.EXPECT().FindLastUpdatedByLocation(ctx, mock.AnythingOfType("*sql.DB"), location).Return(nil, nil).Once()
 
 	weatherProviderMock := NewMockWeatherProvider(t)
 	weatherWithLocationDTOToReturn := dto.WeatherWithLocationDTO{
@@ -44,17 +44,16 @@ func TestWeatherService_GetCurrentWeatherForLocation_Twice(t *testing.T) {
 		LastUpdated: time.Now().UTC().Unix(),
 	}
 	weatherToReturn := mapper.WeatherWithLocationDTOToWeather(weatherWithLocationDTOToReturn)
+	weatherProviderMock.EXPECT().GetCurrentWeather(ctx, location).Return(&weatherWithLocationDTOToReturn, nil).Once()
 
-	weatherProviderMock.EXPECT().GetCurrentWeather(ctx, location).Return(&weatherWithLocationDTOToReturn, nil).Twice()
+	weatherRepositoryMock.EXPECT().Save(ctx, mock.AnythingOfType("*sql.DB"), mock.AnythingOfType("*model.Weather")).Return(nil).Once()
 
-	weatherRepositoryMock := NewMockWeatherRepository(t)
-	weatherRepositoryMock.EXPECT().FindLastUpdatedByLocation(ctx, mock.AnythingOfType("*sql.Tx"), location).Return(nil, nil).Once()
-	weatherRepositoryMock.EXPECT().Save(ctx, mock.AnythingOfType("*sql.Tx"), mock.AnythingOfType("*model.Weather")).Return(nil).Once()
-	weatherRepositoryMock.EXPECT().FindLastUpdatedByLocation(ctx, mock.AnythingOfType("*sql.Tx"), location).Return(&weatherToReturn, nil).Once()
+	weatherRepositoryMock.EXPECT().FindLastUpdatedByLocation(ctx, mock.AnythingOfType("*sql.DB"), location).Return(&weatherToReturn, nil).Once()
 
 	log := slog.New(noophandler.NewNoOpHandler())
 
-	weatherService := NewWeatherService(db, weatherProviderMock, weatherRepositoryMock, log)
+	locationValidator := nimbusvalidtor.NewLocationValidator(validator.New())
+	weatherService := NewWeatherService(db, locationValidator, weatherProviderMock, weatherRepositoryMock, log)
 
 	for range 2 {
 		weatherDTO, err := weatherService.GetCurrentWeatherForLocation(ctx, location)

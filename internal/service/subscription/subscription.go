@@ -16,6 +16,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type SubscriptionValidator interface {
+	ValidateSubscriptionRequest(dto.SubscriptionRequest) error
+}
+
 type WeatherProvider interface {
 	GetCurrentWeather(context.Context, string) (*dto.WeatherWithLocationDTO, error)
 }
@@ -32,11 +36,13 @@ type SubscriptionRepository interface {
 	FindById(context.Context, sqlutil.SQLExecutor, int32) (*model.Subscription, error)
 	DeleteById(context.Context, sqlutil.SQLExecutor, int32) error
 	Update(context.Context, sqlutil.SQLExecutor, *model.Subscription) (*model.Subscription, error)
+	FindAllByFrequencyAndConfirmedStatus(context.Context, sqlutil.SQLExecutor, model.Frequency) ([]*model.Subscription, error)
 }
 
 type TokenRepository interface {
 	Save(context.Context, sqlutil.SQLExecutor, *model.Token) error
 	FindByToken(context.Context, sqlutil.SQLExecutor, string) (*model.Token, error)
+	FindBySubscriptionIdAndType(context.Context, sqlutil.SQLExecutor, int32, model.TokenType) (*model.Token, error)
 }
 
 type EmailSender interface {
@@ -45,6 +51,7 @@ type EmailSender interface {
 
 type SubscriptionService struct {
 	db                      *sql.DB
+	subscriptionValidator   SubscriptionValidator
 	weatherProvider         WeatherProvider
 	subscriberRepository    SubscriberRepository
 	subscriptionRepository  SubscriptionRepository
@@ -58,6 +65,7 @@ type SubscriptionService struct {
 
 func NewSubscriptionService(
 	db *sql.DB,
+	subscriptionValidator SubscriptionValidator,
 	weatherProvider WeatherProvider,
 	subscriberRepository SubscriberRepository,
 	subscriptionRepository SubscriptionRepository,
@@ -70,6 +78,7 @@ func NewSubscriptionService(
 ) *SubscriptionService {
 	return &SubscriptionService{
 		db:                      db,
+		subscriptionValidator:   subscriptionValidator,
 		weatherProvider:         weatherProvider,
 		subscriberRepository:    subscriberRepository,
 		subscriptionRepository:  subscriptionRepository,
@@ -83,15 +92,20 @@ func NewSubscriptionService(
 }
 
 func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.SubscriptionRequest) error {
-	err := sqlutil.WithTx(ctx, s.db, nil, func(tx *sql.Tx) error {
-		weatherWithLocationDTO, errIn := s.weatherProvider.GetCurrentWeather(ctx, subReq.City)
-		if errIn != nil {
-			if errors.Is(errIn, commonerrors.ErrLocationNotFound) {
-				return errIn
-			} else {
-				return fmt.Errorf("unable to validate location err:%w", errIn)
-			}
+	if err := s.subscriptionValidator.ValidateSubscriptionRequest(subReq); err != nil {
+		return fmt.Errorf("validate subscription request: %w: %v", commonerrors.ErrValidationFailed, err)
+	}
+
+	weatherWithLocationDTO, err := s.weatherProvider.GetCurrentWeather(ctx, subReq.City)
+	if err != nil {
+		if errors.Is(err, commonerrors.ErrLocationNotFound) {
+			return err
+		} else {
+			return fmt.Errorf("unable to validate location err:%w", err)
 		}
+	}
+
+	err = sqlutil.WithTx(ctx, s.db, nil, func(tx *sql.Tx) error {
 
 		subscriber, errIn := s.subscriberRepository.FindByEmail(ctx, tx, subReq.Email)
 		if errIn != nil {
@@ -294,4 +308,35 @@ func (s *SubscriptionService) Unsubscribe(ctx context.Context, tokenStr string) 
 	s.log.Info("transaction commited successfully")
 
 	return nil
+}
+
+func (s *SubscriptionService) PrepareSubscriptionDataForFrequency(ctx context.Context, frequency model.Frequency) ([]dto.SubscriptionData, error) {
+	var subscriptionData []dto.SubscriptionData
+
+	subscriptions, err := s.subscriptionRepository.FindAllByFrequencyAndConfirmedStatus(ctx, s.db, frequency)
+	if err != nil {
+		return subscriptionData, err
+	}
+
+	for _, subscription := range subscriptions {
+		subscriber, errIn := s.subscriberRepository.FindById(ctx, s.db, subscription.SubscriberId)
+		if errIn != nil {
+			s.log.Error("failed to find subscriber", "error", errIn, "id", subscription.SubscriberId)
+			continue
+		}
+		token, errIn := s.tokenRepository.FindBySubscriptionIdAndType(ctx, s.db, subscription.Id, model.TokenType_Unsubscribe)
+		if errIn != nil {
+			s.log.Error("failed to find unsub token for subscription", "error", errIn, "id", subscription.Id)
+			continue
+		}
+
+		data := dto.SubscriptionData{
+			Email:    subscriber.Email,
+			Location: subscription.LocationName,
+			Token:    token.Token,
+		}
+		subscriptionData = append(subscriptionData, data)
+	}
+
+	return subscriptionData, nil
 }
