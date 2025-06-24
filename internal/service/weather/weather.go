@@ -54,7 +54,7 @@ func (s *WeatherService) GetCurrentWeatherForLocation(ctx context.Context, locat
 		return nil, fmt.Errorf("fetch weather from cache: %w", err)
 	}
 
-	if lastWeather == nil || lastWeather.LastUpdated.Add(15*time.Minute).Before(time.Now()) {
+	if lastWeather == nil || lastWeather.LastUpdated.Add(15*time.Minute).Before(time.Now().UTC()) {
 		weatherWithLocationDTO, err := s.weatherProvider.GetCurrentWeather(ctx, location)
 		if err != nil {
 			return nil, fmt.Errorf("update weather: %w", err)
