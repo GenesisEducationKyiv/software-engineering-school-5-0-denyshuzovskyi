@@ -8,11 +8,12 @@ import (
 )
 
 type Config struct {
-	HTTPServer      HTTPServer      `yaml:"server"`
-	Datasource      Datasource      `yaml:"datasource"`
-	WeatherProvider WeatherProvider `yaml:"weather-provider"`
-	EmailService    EmailService    `yaml:"email-service"`
-	Emails          []EmailData     `yaml:"emails"`
+	HTTPServer              HTTPServer      `yaml:"server"`
+	Datasource              Datasource      `yaml:"datasource"`
+	WeatherProvider         WeatherProvider `yaml:"weather-provider" env-prefix:"WEATHER_PROVIDER_"`
+	FallbackWeatherProvider WeatherProvider `yaml:"fallback-weather-provider" env-prefix:"FALLBACK_WEATHER_PROVIDER_"`
+	EmailService            EmailService    `yaml:"email-service"`
+	Emails                  []EmailData     `yaml:"emails"`
 }
 
 type HTTPServer struct {
@@ -25,8 +26,8 @@ type Datasource struct {
 }
 
 type WeatherProvider struct {
-	Url string `yaml:"url" env:"WEATHER_PROVIDER_URL"`
-	Key string `yaml:"key" env:"WEATHER_PROVIDER_KEY"`
+	Url string `yaml:"url" env:"URL"`
+	Key string `yaml:"key" env:"KEY"`
 }
 
 type EmailService struct {

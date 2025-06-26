@@ -6,6 +6,9 @@ datasource:
 weather-provider:
   url: https://api.weatherapi.com/v1
   key: key
+fallback-weather-provider:
+  url: https://api.weatherstack.com/current
+  key: key
 email-service:
   domain: ""
   key: key

@@ -10,12 +10,15 @@ import (
 	"os"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/emailclient"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
+	weatherprovider "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherapi"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config/email"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/cron"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/database"
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/logger"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/postgresql"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server/handler"
@@ -33,14 +36,15 @@ import (
 func main() {
 	cfg := config.ReadConfig("./config/config.yaml")
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	weatherLog := slog.New(slog.NewJSONHandler(logger.SetUpRotator("logs/weather.log"), &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	if err := runApp(cfg, log); err != nil {
+	if err := runApp(cfg, weatherLog, log); err != nil {
 		log.Error("fatal error", "error", err)
 		os.Exit(1)
 	}
 }
 
-func runApp(cfg *config.Config, log *slog.Logger) error {
+func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -69,7 +73,13 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 		return fmt.Errorf("email data %w", commonerrors.ErrValidationFailed)
 	}
 
-	weatherApiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, &http.Client{}, log)
+	client := &http.Client{}
+	weatherapiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, client, log)
+	weatherapiProvider := weatherprovider.NewLoggingWeatherProvider("weatherapi.com", weatherapiClient, weatherLog, log)
+	weatherstackClient := weatherstack.NewClient(cfg.FallbackWeatherProvider.Url, cfg.FallbackWeatherProvider.Key, client, log)
+	weatherstackProvider := weatherprovider.NewLoggingWeatherProvider("weatherstack.com", weatherstackClient, weatherLog, log)
+	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(log, weatherapiProvider, weatherstackProvider)
+
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
 
 	weatherRepository := postgresql.NewWeatherRepository()
@@ -81,8 +91,8 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 	locationValidator := nimbusvalidator.NewLocationValidator(validate)
 	subscriptionValidator := nimbusvalidator.NewSubscriptionValidator(validate)
 
-	weatherService := weather.NewWeatherService(db, locationValidator, weatherApiClient, weatherRepository, log)
-	subscriptionService := subscription.NewSubscriptionService(db, subscriptionValidator, weatherApiClient, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
+	weatherService := weather.NewWeatherService(db, locationValidator, chainWeatherProvider, weatherRepository, log)
+	subscriptionService := subscription.NewSubscriptionService(db, subscriptionValidator, chainWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
 	notificationService := notification.NewNotificationService(emailClient)
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
 

@@ -1,0 +1,59 @@
+{
+  "request": {
+    "type": "City",
+    "query": "Kyiv, Ukraine",
+    "language": "en",
+    "unit": "m"
+  },
+  "location": {
+    "name": "Kyiv",
+    "country": "Ukraine",
+    "region": "Kyyivs'ka Oblast'",
+    "lat": "50.433",
+    "lon": "30.517",
+    "timezone_id": "Europe/Kiev",
+    "localtime": "2025-06-26 22:09",
+    "localtime_epoch": 1750975740,
+    "utc_offset": "3.0"
+  },
+  "current": {
+    "observation_time": "07:09 PM",
+    "temperature": 16,
+    "weather_code": 113,
+    "weather_icons": [
+      "https://cdn.worldweatheronline.com/images/wsymbols01_png_64/wsymbol_0008_clear_sky_night.png"
+    ],
+    "weather_descriptions": [
+      "Clear "
+    ],
+    "astro": {
+      "sunrise": "04:48 AM",
+      "sunset": "09:14 PM",
+      "moonrise": "05:07 AM",
+      "moonset": "10:43 PM",
+      "moon_phase": "Waxing Crescent",
+      "moon_illumination": 1
+    },
+    "air_quality": {
+      "co": "268.25",
+      "no2": "7.955",
+      "o3": "74",
+      "so2": "1.665",
+      "pm2_5": "5.55",
+      "pm10": "7.215",
+      "us-epa-index": "1",
+      "gb-defra-index": "1"
+    },
+    "wind_speed": 9,
+    "wind_degree": 307,
+    "wind_dir": "NW",
+    "pressure": 1015,
+    "precip": 0,
+    "humidity": 67,
+    "cloudcover": 0,
+    "feelslike": 16,
+    "uv_index": 0,
+    "visibility": 10,
+    "is_day": "no"
+  }
+}

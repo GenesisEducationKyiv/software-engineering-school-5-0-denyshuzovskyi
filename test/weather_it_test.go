@@ -18,7 +18,9 @@ import (
 	"testing"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/emailclient"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
+	weatherprovider "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherapi"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config/email"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/database"
@@ -51,7 +53,7 @@ type TestEnv struct {
 	Cleanup func()
 }
 
-func SetupTestEnv(t *testing.T) *TestEnv {
+func SetUpTestEnv(t *testing.T) *TestEnv {
 	t.Helper()
 
 	if testing.Short() {
@@ -93,24 +95,36 @@ func SetupTestEnv(t *testing.T) *TestEnv {
 }
 
 func TestGetWeatherIT(t *testing.T) {
-	env := SetupTestEnv(t)
+	env := SetUpTestEnv(t)
 	defer env.Cleanup()
 
-	currentWeatherData, err := os.ReadFile("./test_data/current_weather_success_resp.json")
+	// Client-interceptor for weatherapiClient
+	waClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusInternalServerError,
+			Body:       io.NopCloser(bytes.NewReader([]byte{})),
+			Header:     make(http.Header),
+		}, nil
+	})
+	weatherapiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", waClient, env.Log)
+
+	// Client-interceptor for weatherstack
+	currentWeatherData, err := os.ReadFile("./test_data/weatherstack_success_resp.json")
 	require.NoError(t, err)
-	testClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
+	wsClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(bytes.NewReader(currentWeatherData)),
 			Header:     make(http.Header),
 		}, nil
 	})
+	weatherstackClient := weatherstack.NewClient("https://api.weatherstack.com/current", "key", wsClient, env.Log)
 
-	weatherApiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", testClient, env.Log)
+	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(env.Log, weatherapiClient, weatherstackClient)
 	weatherRepository := postgresql.NewWeatherRepository()
 	validate := validator.New()
 	locationValidator := nimbusvalidator.NewLocationValidator(validate)
-	weatherService := weather.NewWeatherService(env.DB, locationValidator, weatherApiClient, weatherRepository, env.Log)
+	weatherService := weather.NewWeatherService(env.DB, locationValidator, chainWeatherProvider, weatherRepository, env.Log)
 	weatherHandler := handler.NewWeatherHandler(weatherService, env.Log)
 
 	city := "Kyiv"
@@ -133,9 +147,9 @@ func TestGetWeatherIT(t *testing.T) {
 	err = json.Unmarshal(rr.Body.Bytes(), &actualWeatherDto)
 	require.NoError(t, err)
 
-	expectedTemp := float32(6.6)
-	expectedHum := float32(94)
-	expectedDesc := "Light drizzle"
+	expectedTemp := float32(16)
+	expectedHum := float32(67)
+	expectedDesc := "Clear "
 	delta := 0.01
 
 	require.InDelta(t, expectedTemp, actualWeatherDto.Temperature, delta)
@@ -151,7 +165,7 @@ func TestGetWeatherIT(t *testing.T) {
 }
 
 func TestFullCycleIT(t *testing.T) {
-	env := SetupTestEnv(t)
+	env := SetUpTestEnv(t)
 	defer env.Cleanup()
 
 	// EmailData
@@ -169,8 +183,8 @@ func TestFullCycleIT(t *testing.T) {
 	unsubEmailData, unsubOk := emailDataMap["unsubscribe"]
 	require.True(t, unsubOk)
 
-	// Client-interceptor for weatherApiClient
-	currentWeatherData, err := os.ReadFile("./test_data/current_weather_success_resp.json")
+	// Client-interceptor for weatherapiClient
+	currentWeatherData, err := os.ReadFile("./test_data/weatherapi_success_resp.json")
 	require.NoError(t, err)
 	waClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
@@ -179,7 +193,7 @@ func TestFullCycleIT(t *testing.T) {
 			Header:     make(http.Header),
 		}, nil
 	})
-	weatherApiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", waClient, env.Log)
+	weatherapiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", waClient, env.Log)
 
 	// Client-interceptor for emailClient
 	mailgunRespData, err := os.ReadFile("./test_data/mailgun_success_resp.json")
@@ -228,7 +242,7 @@ func TestFullCycleIT(t *testing.T) {
 	subscriptionService := subscription.NewSubscriptionService(
 		env.DB,
 		subscriptionValidator,
-		weatherApiClient,
+		weatherapiClient,
 		subscriberRepository,
 		subscriptionRepository,
 		tokenRepository,
@@ -239,7 +253,7 @@ func TestFullCycleIT(t *testing.T) {
 		env.Log)
 	notificationService := notification.NewNotificationService(emailClient)
 	locationValidator := nimbusvalidator.NewLocationValidator(validate)
-	weatherService := weather.NewWeatherService(env.DB, locationValidator, weatherApiClient, weatherRepository, env.Log)
+	weatherService := weather.NewWeatherService(env.DB, locationValidator, weatherapiClient, weatherRepository, env.Log)
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, env.Log)
 
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, env.Log)

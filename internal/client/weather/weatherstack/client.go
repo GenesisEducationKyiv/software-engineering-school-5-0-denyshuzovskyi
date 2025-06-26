@@ -19,7 +19,7 @@ type Client struct {
 	log     *slog.Logger
 }
 
-func NewClient(baseURL, apiKey string, client *http.Client, log *slog.Logger) *Client {
+func NewClient(baseURL string, apiKey string, client *http.Client, log *slog.Logger) *Client {
 	return &Client{
 		baseURL: baseURL,
 		apiKey:  apiKey,
@@ -56,8 +56,6 @@ func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*dto.W
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-	case http.StatusBadRequest:
-		return nil, commonerrors.ErrLocationNotFound
 	default:
 		return nil, fmt.Errorf("%w status code: %d", commonerrors.ErrUnexpectedStatusCode, resp.StatusCode)
 	}
