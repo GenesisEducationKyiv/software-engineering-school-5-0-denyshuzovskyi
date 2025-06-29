@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS idx_token_subscription_id_type;
+DROP INDEX IF EXISTS idx_weather_location_name_last_updated;
