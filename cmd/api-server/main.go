@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -21,6 +22,8 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/subscription"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weatherupd"
+	nimbusvalidator "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
 	"github.com/go-playground/validator/v10"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -40,7 +43,6 @@ func main() {
 func runApp(cfg *config.Config, log *slog.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	validate := validator.New()
 
 	db, err := database.InitDB(ctx, cfg.Datasource.Url, log)
 	if err != nil {
@@ -64,7 +66,7 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 	unsubEmailData, unsubOk := emailDataMap["unsubscribe"]
 	if !confOk || !confSuccessOk || !weatherOk || !unsubOk {
 		log.Error("cannot prepare email data")
-		return commonerrors.ErrInvalidEmailData
+		return fmt.Errorf("email data %w", commonerrors.ErrValidationFailed)
 	}
 
 	weatherApiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, &http.Client{}, log)
@@ -75,21 +77,29 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
 
-	weatherService := weather.NewWeatherService(db, weatherApiClient, weatherRepository, log)
-	subscriptionService := subscription.NewSubscriptionService(db, weatherApiClient, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
-	notificationService := notification.NewNotificationService(db, weatherApiClient, weatherRepository, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, log)
+	validate := validator.New()
+	locationValidator := nimbusvalidator.NewLocationValidator(validate)
+	subscriptionValidator := nimbusvalidator.NewSubscriptionValidator(validate)
+
+	weatherService := weather.NewWeatherService(db, locationValidator, weatherApiClient, weatherRepository, log)
+	subscriptionService := subscription.NewSubscriptionService(db, subscriptionValidator, weatherApiClient, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
+	notificationService := notification.NewNotificationService(emailClient)
+	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
 
 	weatherHandler := handler.NewWeatherHandler(weatherService, log)
-	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, validate, log)
+	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, log)
 
-	if err = cron.StartCronJobs(ctx, notificationService, weatherEmailData, log); err != nil {
+	cron, err := cron.SetUpCronJobs(ctx, weatherUpdateSendingService, weatherEmailData, log)
+	if err != nil {
 		return err
 	}
+	cron.Start()
+	defer cron.Stop()
 
-	router := server.InitRouter(weatherHandler, subscriptionHandler)
+	mux := server.InitMux(weatherHandler, subscriptionHandler)
 	srv := &http.Server{
 		Addr:    net.JoinHostPort(cfg.HTTPServer.Host, cfg.HTTPServer.Port),
-		Handler: router,
+		Handler: mux,
 	}
 
 	log.Info("starting http server", "addr", srv.Addr)

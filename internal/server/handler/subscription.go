@@ -8,7 +8,6 @@ import (
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
-	"github.com/go-playground/validator/v10"
 )
 
 type SubscriptionService interface {
@@ -19,14 +18,12 @@ type SubscriptionService interface {
 
 type SubscriptionHandler struct {
 	subscriptionService SubscriptionService
-	validator           *validator.Validate
 	log                 *slog.Logger
 }
 
-func NewSubscriptionHandler(subscriptionService SubscriptionService, validator *validator.Validate, log *slog.Logger) *SubscriptionHandler {
+func NewSubscriptionHandler(subscriptionService SubscriptionService, log *slog.Logger) *SubscriptionHandler {
 	return &SubscriptionHandler{
 		subscriptionService: subscriptionService,
-		validator:           validator,
 		log:                 log,
 	}
 }
@@ -44,18 +41,18 @@ func (h *SubscriptionHandler) Subscribe(w http.ResponseWriter, r *http.Request) 
 	subscriptionReq.City = r.FormValue("city")
 	subscriptionReq.Frequency = r.FormValue("frequency")
 
-	if err = h.validator.Struct(subscriptionReq); err != nil {
-		http.Error(w, "invalid input", http.StatusBadRequest)
-		h.log.Error("error validating data", "error", err)
-		return
-	}
-
 	if err = h.subscriptionService.Subscribe(r.Context(), subscriptionReq); err != nil {
+		if errors.Is(err, commonerrors.ErrValidationFailed) {
+			http.Error(w, "invalid input", http.StatusBadRequest)
+			h.log.Error("error validating data", "error", err)
+			return
+		}
 		if errors.Is(err, commonerrors.ErrLocationNotFound) {
 			http.Error(w, "invalid input", http.StatusBadRequest)
 			h.log.Error("couldn't validate city", "error", err)
 			return
-		} else if errors.Is(err, commonerrors.ErrSubscriptionAlreadyExists) {
+		}
+		if errors.Is(err, commonerrors.ErrSubscriptionAlreadyExists) {
 			http.Error(w, "email already subscribed", http.StatusConflict)
 			h.log.Error("subscription already exists", "error", err)
 			return

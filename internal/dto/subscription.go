@@ -5,3 +5,9 @@ type SubscriptionRequest struct {
 	City      string `validate:"required"`
 	Frequency string `validate:"required,oneof=hourly daily"`
 }
+
+type SubscriptionData struct {
+	Email    string
+	Location string
+	Token    string
+}

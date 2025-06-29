@@ -3,17 +3,23 @@ package weather
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
+	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/sqlutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/mapper"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 )
 
+type LocationValidator interface {
+	ValidateLocation(string) error
+}
+
 type WeatherProvider interface {
-	GetCurrentWeather(context.Context, string) (*model.Weather, error)
+	GetCurrentWeather(context.Context, string) (*dto.WeatherWithLocationDTO, error)
 }
 
 type WeatherRepository interface {
@@ -23,14 +29,16 @@ type WeatherRepository interface {
 
 type WeatherService struct {
 	db                *sql.DB
+	locationValidator LocationValidator
 	weatherProvider   WeatherProvider
 	weatherRepository WeatherRepository
 	log               *slog.Logger
 }
 
-func NewWeatherService(db *sql.DB, weatherProvider WeatherProvider, weatherRepository WeatherRepository, log *slog.Logger) *WeatherService {
+func NewWeatherService(db *sql.DB, locationValidator LocationValidator, weatherProvider WeatherProvider, weatherRepository WeatherRepository, log *slog.Logger) *WeatherService {
 	return &WeatherService{
 		db:                db,
+		locationValidator: locationValidator,
 		weatherProvider:   weatherProvider,
 		weatherRepository: weatherRepository,
 		log:               log,
@@ -38,35 +46,28 @@ func NewWeatherService(db *sql.DB, weatherProvider WeatherProvider, weatherRepos
 }
 
 func (s *WeatherService) GetCurrentWeatherForLocation(ctx context.Context, location string) (*dto.WeatherDTO, error) {
-	weather, err := s.weatherProvider.GetCurrentWeather(ctx, location)
-	if err != nil {
-		return nil, err
+	if err := s.locationValidator.ValidateLocation(location); err != nil {
+		return nil, fmt.Errorf("validate location: %w: %v", commonerrors.ErrValidationFailed, err)
 	}
-	weatherDto := mapper.WeatherToWeatherDTO(*weather)
+	lastWeather, err := s.weatherRepository.FindLastUpdatedByLocation(ctx, s.db, location)
+	if err != nil {
+		return nil, fmt.Errorf("fetch weather from cache: %w", err)
+	}
 
-	err = sqlutil.WithTx(ctx, s.db, nil, func(tx *sql.Tx) error {
-		lastWeather, errIn := s.weatherRepository.FindLastUpdatedByLocation(ctx, tx, weather.LocationName)
-		if errIn != nil {
-			return errIn
+	if lastWeather == nil || lastWeather.LastUpdated.Add(15*time.Minute).Before(time.Now().UTC()) {
+		weatherWithLocationDTO, err := s.weatherProvider.GetCurrentWeather(ctx, location)
+		if err != nil {
+			return nil, fmt.Errorf("update weather: %w", err)
 		}
-		if lastWeather != nil && lastWeather.LastUpdated.Equal(weather.LastUpdated) {
-			s.log.Info("last weather update is already saved")
-			return nil
-		}
-
+		weather := mapper.WeatherWithLocationDTOToWeather(*weatherWithLocationDTO)
 		weather.FetchedAt = time.Now().UTC()
-		errIn = s.weatherRepository.Save(ctx, tx, weather)
-		if errIn != nil {
-			return errIn
+		if err := s.weatherRepository.Save(ctx, s.db, &weather); err != nil {
+			return nil, fmt.Errorf("save weather: %w", err)
 		}
-
-		return nil
-	})
-	if err != nil {
-		s.log.Error("rolled back transaction because of", "error", err)
-	} else {
-		s.log.Info("transaction commited successfully")
+		lastWeather = &weather
 	}
+
+	weatherDto := mapper.WeatherToWeatherDTO(*lastWeather)
 
 	return &weatherDto, nil
 }

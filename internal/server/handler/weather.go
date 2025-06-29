@@ -33,7 +33,7 @@ func (h *WeatherHandler) GetCurrentWeather(w http.ResponseWriter, r *http.Reques
 	var location = query.Get("city")
 	if location == "" {
 		http.Error(w, "Missing city parameter", http.StatusBadRequest)
-		h.log.Info("no query parameter 'city' found")
+		h.log.Error("no query parameter 'city' found")
 		return
 	}
 
@@ -41,7 +41,12 @@ func (h *WeatherHandler) GetCurrentWeather(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		if errors.Is(err, commonerrors.ErrLocationNotFound) {
 			http.Error(w, "City not found", http.StatusNotFound)
-			h.log.Info("couldn't get weatherDto for provided location", "location", location)
+			h.log.Error("couldn't get weatherDto for provided location", "location", location, "error", err)
+			return
+		}
+		if errors.Is(err, commonerrors.ErrValidationFailed) {
+			http.Error(w, "City validation failed", http.StatusBadRequest)
+			h.log.Error("invalid city", "error", err)
 			return
 		}
 		http.Error(w, "", http.StatusInternalServerError)
