@@ -23,7 +23,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/subscription"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weatherupd"
-	nimbusvalidator "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
+	validators "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
 	"github.com/go-playground/validator/v10"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -80,8 +80,8 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
 
 	validate := validator.New()
-	locationValidator := nimbusvalidator.NewLocationValidator(validate)
-	subscriptionValidator := nimbusvalidator.NewSubscriptionValidator(validate)
+	locationValidator := validators.NewLocationValidator(validate)
+	subscriptionValidator := validators.NewSubscriptionValidator(validate)
 
 	weatherHandler := handler.NewWeatherHandler(weatherService, locationValidator, log)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, subscriptionValidator, log)

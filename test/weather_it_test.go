@@ -33,7 +33,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/subscription"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weatherupd"
-	nimbusvalidator "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
+	validators "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
 	"github.com/go-playground/validator/v10"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -117,7 +117,7 @@ func TestGetWeatherIT(t *testing.T) {
 	weatherRepository := postgresql.NewWeatherRepository()
 	validate := validator.New()
 	weatherService := weather.NewWeatherService(env.DB, chainWeatherProvider, weatherRepository, env.Log)
-	locationValidator := nimbusvalidator.NewLocationValidator(validate)
+	locationValidator := validators.NewLocationValidator(validate)
 	weatherHandler := handler.NewWeatherHandler(weatherService, locationValidator, env.Log)
 
 	city := "Kyiv"
@@ -233,7 +233,7 @@ func TestFullCycleIT(t *testing.T) {
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, env.Log)
 
 	validate := validator.New()
-	subscriptionValidator := nimbusvalidator.NewSubscriptionValidator(validate)
+	subscriptionValidator := validators.NewSubscriptionValidator(validate)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, subscriptionValidator, env.Log)
 
 	// Multiplexer
