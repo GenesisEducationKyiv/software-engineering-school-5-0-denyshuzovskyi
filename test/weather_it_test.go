@@ -13,7 +13,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -56,10 +55,6 @@ func SetUpTestEnv(t *testing.T) *TestEnv {
 
 	if testing.Short() {
 		t.Skip()
-	}
-
-	if runtime.GOOS != "linux" {
-		t.Skip("Works only on Linux (Testcontainers)")
 	}
 
 	log := slog.New(noophandler.NewNoOpHandler())
