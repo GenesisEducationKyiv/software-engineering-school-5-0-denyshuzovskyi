@@ -74,17 +74,17 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
 
+	weatherService := weather.NewWeatherService(db, chainWeatherProvider, weatherRepository, log)
+	subscriptionService := subscription.NewSubscriptionService(db, chainWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, cfg.Emails.ConfirmationEmail, cfg.Emails.ConfirmationSuccessfulEmail, cfg.Emails.UnsubscribeEmail, log)
+	notificationService := notification.NewNotificationService(emailClient)
+	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
+
 	validate := validator.New()
 	locationValidator := nimbusvalidator.NewLocationValidator(validate)
 	subscriptionValidator := nimbusvalidator.NewSubscriptionValidator(validate)
 
-	weatherService := weather.NewWeatherService(db, locationValidator, chainWeatherProvider, weatherRepository, log)
-	subscriptionService := subscription.NewSubscriptionService(db, subscriptionValidator, chainWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, cfg.Emails.ConfirmationEmail, cfg.Emails.ConfirmationSuccessfulEmail, cfg.Emails.UnsubscribeEmail, log)
-	notificationService := notification.NewNotificationService(emailClient)
-	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
-
-	weatherHandler := handler.NewWeatherHandler(weatherService, log)
-	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, log)
+	weatherHandler := handler.NewWeatherHandler(weatherService, locationValidator, log)
+	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, subscriptionValidator, log)
 
 	cron, err := cron.SetUpCronJobs(ctx, weatherUpdateSendingService, cfg.Emails.WeatherEmail, log)
 	if err != nil {

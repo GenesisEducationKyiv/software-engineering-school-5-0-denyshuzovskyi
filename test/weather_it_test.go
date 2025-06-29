@@ -121,9 +121,9 @@ func TestGetWeatherIT(t *testing.T) {
 	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(env.Log, weatherapiClient, weatherstackClient)
 	weatherRepository := postgresql.NewWeatherRepository()
 	validate := validator.New()
+	weatherService := weather.NewWeatherService(env.DB, chainWeatherProvider, weatherRepository, env.Log)
 	locationValidator := nimbusvalidator.NewLocationValidator(validate)
-	weatherService := weather.NewWeatherService(env.DB, locationValidator, chainWeatherProvider, weatherRepository, env.Log)
-	weatherHandler := handler.NewWeatherHandler(weatherService, env.Log)
+	weatherHandler := handler.NewWeatherHandler(weatherService, locationValidator, env.Log)
 
 	city := "Kyiv"
 
@@ -222,11 +222,8 @@ func TestFullCycleIT(t *testing.T) {
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
 
-	validate := validator.New()
-	subscriptionValidator := nimbusvalidator.NewSubscriptionValidator(validate)
 	subscriptionService := subscription.NewSubscriptionService(
 		env.DB,
-		subscriptionValidator,
 		weatherapiClient,
 		subscriberRepository,
 		subscriptionRepository,
@@ -237,11 +234,12 @@ func TestFullCycleIT(t *testing.T) {
 		cfg.Emails.UnsubscribeEmail,
 		env.Log)
 	notificationService := notification.NewNotificationService(emailClient)
-	locationValidator := nimbusvalidator.NewLocationValidator(validate)
-	weatherService := weather.NewWeatherService(env.DB, locationValidator, weatherapiClient, weatherRepository, env.Log)
+	weatherService := weather.NewWeatherService(env.DB, weatherapiClient, weatherRepository, env.Log)
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, env.Log)
 
-	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, env.Log)
+	validate := validator.New()
+	subscriptionValidator := nimbusvalidator.NewSubscriptionValidator(validate)
+	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, subscriptionValidator, env.Log)
 
 	// Multiplexer
 	mux := http.NewServeMux()
