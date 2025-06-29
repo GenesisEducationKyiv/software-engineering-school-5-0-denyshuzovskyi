@@ -14,15 +14,15 @@ email-service:
   key: key
   sender: postmaster@sandboxfd255faff9e0446a99721a7eb078fbb4.mailgun.org
 emails:
-  - name: "confirmation"
+  confirmation-email:
     subject: "Confirm subscription"
     text: "To confirm your subscription use http://db35m6zjaamdj.cloudfront.net/api/confirm/%s"
-  - name: "confirmation-successful"
+  confirmation-successful-email:
     subject: "Confirmation successful"
     text: "You have successfully subscribed for weather update. To unsubscribe use http://db35m6zjaamdj.cloudfront.net/api/unsubscribe/%s"
-  - name: "weather"
+  weather-email:
     subject: "Weather Update"
     text: "Weather for %s: Temp: %f Hum: %f Desc: %s To unsubscribe use http://db35m6zjaamdj.cloudfront.net/api/unsubscribe/%s"
-  - name: "unsubscribe"
+  unsubscribe-email:
     subject: "End of subscription"
     text: "You have successfully unsubscribed"

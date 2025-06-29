@@ -60,7 +60,6 @@ func (s *WeatherService) GetCurrentWeatherForLocation(ctx context.Context, locat
 			return nil, fmt.Errorf("update weather: %w", err)
 		}
 		weather := mapper.WeatherWithLocationDTOToWeather(*weatherWithLocationDTO)
-		weather.FetchedAt = time.Now().UTC()
 		if err := s.weatherRepository.Save(ctx, s.db, &weather); err != nil {
 			return nil, fmt.Errorf("save weather: %w", err)
 		}

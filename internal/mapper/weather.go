@@ -19,7 +19,7 @@ func WeatherWithLocationDTOToWeather(weatherWithLocationDTO dto.WeatherWithLocat
 	return model.Weather{
 		LocationName: weatherWithLocationDTO.Location.Name,
 		LastUpdated:  time.Unix(weatherWithLocationDTO.LastUpdated, 0).UTC(),
-		FetchedAt:    time.Unix(0, 0),
+		FetchedAt:    time.Now().UTC(),
 		Temperature:  weatherWithLocationDTO.Weather.Temperature,
 		Humidity:     weatherWithLocationDTO.Weather.Humidity,
 		Description:  weatherWithLocationDTO.Weather.Description,

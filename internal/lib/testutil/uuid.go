@@ -5,7 +5,9 @@ import (
 	"regexp"
 )
 
-const uuidRegExp = `[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`
+const uuidRegexp = `[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`
+
+var uuidCompiledRegexp = regexp.MustCompile(uuidRegexp)
 
 var errNoUUIDFound = errors.New("no uuid found")
 var errEmptyText = errors.New("empty text")
@@ -15,8 +17,7 @@ func ExtractFirstUUIDFromText(text string) (string, error) {
 		return "", errEmptyText
 	}
 
-	re := regexp.MustCompile(uuidRegExp)
-	match := re.FindString(text)
+	match := uuidCompiledRegexp.FindString(text)
 	if match == "" {
 		return "", errNoUUIDFound
 	}

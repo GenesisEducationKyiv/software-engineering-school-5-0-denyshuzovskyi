@@ -22,7 +22,6 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config/email"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/database"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/httputil"
@@ -38,7 +37,6 @@ import (
 	nimbusvalidator "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
 	"github.com/go-playground/validator/v10"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/ilyakaznacheev/cleanenv"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mailgun/mailgun-go/v4"
 	"github.com/stretchr/testify/require"
@@ -168,20 +166,7 @@ func TestFullCycleIT(t *testing.T) {
 	env := SetUpTestEnv(t)
 	defer env.Cleanup()
 
-	// EmailData
-	var cfg config.Config
-	err := cleanenv.ReadConfig("./../config/config.yaml", &cfg)
-	require.NoError(t, err)
-
-	emailDataMap := email.PrepareEmailData(&cfg)
-	confirmEmailData, confOk := emailDataMap["confirmation"]
-	require.True(t, confOk)
-	confirmSuccessEmailData, confSuccessOk := emailDataMap["confirmation-successful"]
-	require.True(t, confSuccessOk)
-	weatherEmailData, weatherOk := emailDataMap["weather"]
-	require.True(t, weatherOk)
-	unsubEmailData, unsubOk := emailDataMap["unsubscribe"]
-	require.True(t, unsubOk)
+	cfg := config.ReadConfig("./../config/config.yaml")
 
 	// Client-interceptor for weatherapiClient
 	currentWeatherData, err := os.ReadFile("./test_data/weatherapi_success_resp.json")
@@ -247,9 +232,9 @@ func TestFullCycleIT(t *testing.T) {
 		subscriptionRepository,
 		tokenRepository,
 		emailClient,
-		confirmEmailData,
-		confirmSuccessEmailData,
-		unsubEmailData,
+		cfg.Emails.ConfirmationEmail,
+		cfg.Emails.ConfirmationSuccessfulEmail,
+		cfg.Emails.UnsubscribeEmail,
 		env.Log)
 	notificationService := notification.NewNotificationService(emailClient)
 	locationValidator := nimbusvalidator.NewLocationValidator(validate)
@@ -290,16 +275,16 @@ func TestFullCycleIT(t *testing.T) {
 	// Imitate notification job trigger
 	sentEmails = sentEmails[:0]
 	require.Empty(t, sentEmails)
-	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Hourly, weatherEmailData)
+	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Hourly, cfg.Emails.WeatherEmail)
 	require.Empty(t, sentEmails)
-	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Daily, weatherEmailData)
+	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Daily, cfg.Emails.WeatherEmail)
 	require.Len(t, sentEmails, 1)
-	require.Equal(t, weatherEmailData.Subject, sentEmails[0].Subject)
+	require.Equal(t, cfg.Emails.WeatherEmail.Subject, sentEmails[0].Subject)
 
 	// Unsubscribe
 	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/unsubscribe/%s", lastToken), nil)
 	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	require.Equal(t, unsubEmailData.Text, sentEmails[len(sentEmails)-1].Text)
+	require.Equal(t, cfg.Emails.UnsubscribeEmail.Text, sentEmails[len(sentEmails)-1].Text)
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -14,10 +13,8 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config/email"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/cron"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/database"
-	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/logger"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/postgresql"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server"
@@ -63,16 +60,6 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 		return err
 	}
 
-	emailDataMap := email.PrepareEmailData(cfg)
-	confirmEmailData, confOk := emailDataMap["confirmation"]
-	confirmSuccessEmailData, confSuccessOk := emailDataMap["confirmation-successful"]
-	weatherEmailData, weatherOk := emailDataMap["weather"]
-	unsubEmailData, unsubOk := emailDataMap["unsubscribe"]
-	if !confOk || !confSuccessOk || !weatherOk || !unsubOk {
-		log.Error("cannot prepare email data")
-		return fmt.Errorf("email data %w", commonerrors.ErrValidationFailed)
-	}
-
 	client := &http.Client{}
 	weatherapiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, client, log)
 	weatherapiProvider := weatherprovider.NewLoggingWeatherProvider("weatherapi.com", weatherapiClient, weatherLog, log)
@@ -92,14 +79,14 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	subscriptionValidator := nimbusvalidator.NewSubscriptionValidator(validate)
 
 	weatherService := weather.NewWeatherService(db, locationValidator, chainWeatherProvider, weatherRepository, log)
-	subscriptionService := subscription.NewSubscriptionService(db, subscriptionValidator, chainWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, confirmEmailData, confirmSuccessEmailData, unsubEmailData, log)
+	subscriptionService := subscription.NewSubscriptionService(db, subscriptionValidator, chainWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, cfg.Emails.ConfirmationEmail, cfg.Emails.ConfirmationSuccessfulEmail, cfg.Emails.UnsubscribeEmail, log)
 	notificationService := notification.NewNotificationService(emailClient)
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
 
 	weatherHandler := handler.NewWeatherHandler(weatherService, log)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, log)
 
-	cron, err := cron.SetUpCronJobs(ctx, weatherUpdateSendingService, weatherEmailData, log)
+	cron, err := cron.SetUpCronJobs(ctx, weatherUpdateSendingService, cfg.Emails.WeatherEmail, log)
 	if err != nil {
 		return err
 	}
