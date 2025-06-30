@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
 )
 
@@ -28,7 +27,7 @@ func NewClient(baseURL string, apiKey string, client *http.Client, log *slog.Log
 	}
 }
 
-func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*dto.WeatherWithLocationDTO, error) {
+func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*CurrentWeather, error) {
 	u, err := url.Parse(c.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse url: %w", err)
@@ -63,10 +62,5 @@ func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*dto.W
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
-	var weatherWithLocationDTO dto.WeatherWithLocationDTO
-	weatherWithLocationDTO, err = CurrentWeatherToWeatherWithLocationDTO(currentWeather)
-	if err != nil {
-		return nil, fmt.Errorf("mapping error: %w", err)
-	}
-	return &weatherWithLocationDTO, nil
+	return &currentWeather, nil
 }

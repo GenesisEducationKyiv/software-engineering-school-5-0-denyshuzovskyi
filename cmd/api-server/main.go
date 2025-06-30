@@ -9,9 +9,8 @@ import (
 	"os"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/emailclient"
-	weatherprovider "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherapi"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherstack"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/cron"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/database"
@@ -22,6 +21,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/subscription"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weatherprovider"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weatherupd"
 	validators "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
 	"github.com/go-playground/validator/v10"
@@ -62,9 +62,9 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 
 	client := &http.Client{}
 	weatherapiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, client, log)
-	weatherapiProvider := weatherprovider.NewLoggingWeatherProvider("weatherapi.com", weatherapiClient, weatherLog, log)
+	weatherapiProvider := weatherprovider.NewLoggingWeatherProvider("weatherapi.com", weatherprovider.NewWeatherapiProvider(weatherapiClient), weatherLog, log)
 	weatherstackClient := weatherstack.NewClient(cfg.FallbackWeatherProvider.Url, cfg.FallbackWeatherProvider.Key, client, log)
-	weatherstackProvider := weatherprovider.NewLoggingWeatherProvider("weatherstack.com", weatherstackClient, weatherLog, log)
+	weatherstackProvider := weatherprovider.NewLoggingWeatherProvider("weatherstack.com", weatherprovider.NewWeatherstackProvider(weatherstackClient), weatherLog, log)
 	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(log, weatherapiProvider, weatherstackProvider)
 
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))

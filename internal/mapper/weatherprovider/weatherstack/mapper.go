@@ -1,16 +1,17 @@
-package weatherstack
+package weatherapi
 
 import (
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 )
 
 var errTimestampMapping = errors.New("timestamp mapping error")
 
-func CurrentWeatherToWeatherWithLocationDTO(currentWeather CurrentWeather) (dto.WeatherWithLocationDTO, error) {
+func CurrentWeatherToWeatherWithLocationDTO(currentWeather weatherstack.CurrentWeather) (dto.WeatherWithLocationDTO, error) {
 	description := extractDescription(currentWeather.Current.WeatherDescriptions)
 
 	if currentWeather.Location.Localtime == "" ||

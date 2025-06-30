@@ -17,9 +17,8 @@ import (
 	"testing"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/emailclient"
-	weatherprovider "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherapi"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weather/weatherstack"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/database"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
@@ -32,6 +31,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/subscription"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weatherprovider"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weatherupd"
 	validators "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
 	"github.com/go-playground/validator/v10"
@@ -100,6 +100,7 @@ func TestGetWeatherIT(t *testing.T) {
 		}, nil
 	})
 	weatherapiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", waClient, env.Log)
+	weatherapiProvider := weatherprovider.NewWeatherapiProvider(weatherapiClient)
 
 	// Client-interceptor for weatherstack
 	currentWeatherData, err := os.ReadFile("./test_data/weatherstack_success_resp.json")
@@ -112,8 +113,9 @@ func TestGetWeatherIT(t *testing.T) {
 		}, nil
 	})
 	weatherstackClient := weatherstack.NewClient("https://api.weatherstack.com/current", "key", wsClient, env.Log)
+	weatherstackProvider := weatherprovider.NewWeatherstackProvider(weatherstackClient)
 
-	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(env.Log, weatherapiClient, weatherstackClient)
+	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(env.Log, weatherapiProvider, weatherstackProvider)
 	weatherRepository := postgresql.NewWeatherRepository()
 	validate := validator.New()
 	weatherService := weather.NewWeatherService(env.DB, chainWeatherProvider, weatherRepository, env.Log)
@@ -174,6 +176,7 @@ func TestFullCycleIT(t *testing.T) {
 		}, nil
 	})
 	weatherapiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", waClient, env.Log)
+	weatherapiProvider := weatherprovider.NewWeatherapiProvider(weatherapiClient)
 
 	// Client-interceptor for emailClient
 	mailgunRespData, err := os.ReadFile("./test_data/mailgun_success_resp.json")
@@ -219,7 +222,7 @@ func TestFullCycleIT(t *testing.T) {
 
 	subscriptionService := subscription.NewSubscriptionService(
 		env.DB,
-		weatherapiClient,
+		weatherapiProvider,
 		subscriberRepository,
 		subscriptionRepository,
 		tokenRepository,
@@ -229,7 +232,7 @@ func TestFullCycleIT(t *testing.T) {
 		cfg.Emails.UnsubscribeEmail,
 		env.Log)
 	notificationService := notification.NewNotificationService(emailClient)
-	weatherService := weather.NewWeatherService(env.DB, weatherapiClient, weatherRepository, env.Log)
+	weatherService := weather.NewWeatherService(env.DB, weatherapiProvider, weatherRepository, env.Log)
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, env.Log)
 
 	validate := validator.New()
