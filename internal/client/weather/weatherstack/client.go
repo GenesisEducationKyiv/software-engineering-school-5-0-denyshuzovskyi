@@ -54,9 +54,7 @@ func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*dto.W
 		}
 	}()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-	default:
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%w status code: %d", commonerrors.ErrUnexpectedStatusCode, resp.StatusCode)
 	}
 
