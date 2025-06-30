@@ -1,4 +1,4 @@
-package weatherapi
+package weatherstack
 
 import (
 	"errors"
