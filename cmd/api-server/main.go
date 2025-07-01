@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"net"
 	"net/http"
@@ -30,6 +29,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mailgun/mailgun-go/v4"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -76,12 +76,11 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
 
-	weatherRepository := postgresql.NewWeatherRepository()
 	subscriberRepository := postgresql.NewSubscriberRepository()
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
 
-	weatherService := weather.NewWeatherService(db, cachingWeatherProvider, weatherRepository, log)
+	weatherService := weather.NewWeatherService(cachingWeatherProvider, log)
 	subscriptionService := subscription.NewSubscriptionService(db, cachingWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, cfg.Emails.ConfirmationEmail, cfg.Emails.ConfirmationSuccessfulEmail, cfg.Emails.UnsubscribeEmail, log)
 	notificationService := notification.NewNotificationService(emailClient)
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
