@@ -16,6 +16,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:8-alpine
+    container_name: nimbus-notify-redis
+#    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    ports:
+      - "6379:6379"
+    networks:
+      - nimbus-notify-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   api-server:
     build:
       context: .
@@ -23,6 +37,8 @@ services:
     container_name: nimbus-notify-api-server
     depends_on:
       postgresql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "8080:8080"
@@ -36,6 +52,7 @@ services:
       WEATHER_PROVIDER_KEY: ${WEATHER_PROVIDER_KEY}
       EMAIL_SERVICE_DOMAIN: ${EMAIL_SERVICE_DOMAIN}
       EMAIL_SERVICE_KEY: ${EMAIL_SERVICE_KEY}
+      REDIS_URL: redis://redis:6379
 
 networks:
   nimbus-notify-network:
