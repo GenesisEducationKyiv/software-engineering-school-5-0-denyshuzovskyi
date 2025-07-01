@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
+	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/emailclient"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
@@ -66,6 +68,11 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	weatherstackClient := weatherstack.NewClient(cfg.FallbackWeatherProvider.Url, cfg.FallbackWeatherProvider.Key, client, log)
 	weatherstackProvider := weatherprovider.NewLoggingWeatherProvider("weatherstack.com", weatherprovider.NewWeatherstackProvider(weatherstackClient), weatherLog, log)
 	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(log, weatherapiProvider, weatherstackProvider)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: cfg.Redis.Url,
+		//Password: cfg.Redis.Password,
+	})
+	cachingWeatherProvider := weatherprovider.NewCachingWeatherProvider(redisClient, 15*time.Minute, chainWeatherProvider)
 
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
 
@@ -74,8 +81,8 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
 
-	weatherService := weather.NewWeatherService(db, chainWeatherProvider, weatherRepository, log)
-	subscriptionService := subscription.NewSubscriptionService(db, chainWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, cfg.Emails.ConfirmationEmail, cfg.Emails.ConfirmationSuccessfulEmail, cfg.Emails.UnsubscribeEmail, log)
+	weatherService := weather.NewWeatherService(db, cachingWeatherProvider, weatherRepository, log)
+	subscriptionService := subscription.NewSubscriptionService(db, cachingWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, emailClient, cfg.Emails.ConfirmationEmail, cfg.Emails.ConfirmationSuccessfulEmail, cfg.Emails.UnsubscribeEmail, log)
 	notificationService := notification.NewNotificationService(emailClient)
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
 

@@ -12,6 +12,7 @@ type Config struct {
 	Datasource              Datasource      `yaml:"datasource"`
 	WeatherProvider         WeatherProvider `yaml:"weather-provider" env-prefix:"WEATHER_PROVIDER_"`
 	FallbackWeatherProvider WeatherProvider `yaml:"fallback-weather-provider" env-prefix:"FALLBACK_WEATHER_PROVIDER_"`
+	Redis                   Redis           `yaml:"redis"`
 	EmailService            EmailService    `yaml:"email-service"`
 	Emails                  Emails          `yaml:"emails"`
 }
@@ -28,6 +29,11 @@ type Datasource struct {
 type WeatherProvider struct {
 	Url string `yaml:"url" env:"URL"`
 	Key string `yaml:"key" env:"KEY"`
+}
+
+type Redis struct {
+	Url      string `yaml:"url" env:"REDIS_URL"`
+	Password string `yaml:"password" env:"REDIS_PASSWORD"`
 }
 
 type EmailService struct {
