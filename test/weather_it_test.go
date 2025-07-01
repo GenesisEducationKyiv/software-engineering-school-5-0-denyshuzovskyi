@@ -116,9 +116,8 @@ func TestGetWeatherIT(t *testing.T) {
 	weatherstackProvider := weatherprovider.NewWeatherstackProvider(weatherstackClient)
 
 	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(env.Log, weatherapiProvider, weatherstackProvider)
-	weatherRepository := postgresql.NewWeatherRepository()
 	validate := validator.New()
-	weatherService := weather.NewWeatherService(env.DB, chainWeatherProvider, weatherRepository, env.Log)
+	weatherService := weather.NewWeatherService(chainWeatherProvider, env.Log)
 	locationValidator := validators.NewLocationValidator(validate)
 	weatherHandler := handler.NewWeatherHandler(weatherService, locationValidator, env.Log)
 
@@ -150,13 +149,6 @@ func TestGetWeatherIT(t *testing.T) {
 	require.InDelta(t, expectedTemp, actualWeatherDto.Temperature, delta)
 	require.InDelta(t, expectedHum, actualWeatherDto.Humidity, delta)
 	require.Equal(t, expectedDesc, actualWeatherDto.Description)
-
-	actualWeatherFromDB, err := weatherRepository.FindLastUpdatedByLocation(t.Context(), env.DB, city)
-	require.NoError(t, err)
-	require.NotNil(t, actualWeatherFromDB)
-	require.InDelta(t, expectedTemp, actualWeatherFromDB.Temperature, delta)
-	require.InDelta(t, expectedHum, actualWeatherFromDB.Humidity, delta)
-	require.Equal(t, expectedDesc, actualWeatherFromDB.Description)
 }
 
 func TestFullCycleIT(t *testing.T) {
@@ -215,7 +207,6 @@ func TestFullCycleIT(t *testing.T) {
 	emailClient := emailclient.NewEmailClient(mailgunClient)
 
 	// Repositories, Services, Handlers
-	weatherRepository := postgresql.NewWeatherRepository()
 	subscriberRepository := postgresql.NewSubscriberRepository()
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
@@ -232,7 +223,7 @@ func TestFullCycleIT(t *testing.T) {
 		cfg.Emails.UnsubscribeEmail,
 		env.Log)
 	notificationService := notification.NewNotificationService(emailClient)
-	weatherService := weather.NewWeatherService(env.DB, weatherapiProvider, weatherRepository, env.Log)
+	weatherService := weather.NewWeatherService(weatherapiProvider, env.Log)
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, env.Log)
 
 	validate := validator.New()
