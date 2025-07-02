@@ -1,21 +1,13 @@
 package weatherstack
 
-type Request struct {
-	Type     string `json:"type"`
-	Query    string `json:"query"`
-	Language string `json:"language"`
-	Unit     string `json:"unit"`
-}
-
 type Location struct {
-	Name           string `json:"name"`
-	Country        string `json:"country"`
-	Region         string `json:"region"`
-	Lat            string `json:"lat"`
-	Lon            string `json:"lon"`
-	Timezone       string `json:"timezone_id"`
-	Localtime      string `json:"localtime"`
-	LocaltimeEpoch int64  `json:"localtime_epoch"`
+	Name      string `json:"name"`
+	Country   string `json:"country"`
+	Region    string `json:"region"`
+	Lat       string `json:"lat"`
+	Lon       string `json:"lon"`
+	Timezone  string `json:"timezone_id"`
+	Localtime string `json:"localtime"`
 }
 
 type Current struct {
@@ -36,7 +28,6 @@ type Current struct {
 }
 
 type CurrentWeather struct {
-	Request  Request  `json:"request"`
 	Location Location `json:"location"`
 	Current  Current  `json:"current"`
 }
