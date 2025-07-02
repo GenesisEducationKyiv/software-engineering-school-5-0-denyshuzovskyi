@@ -43,3 +43,6 @@ https://github.com/mykhailo-hrynko/se-school-5
     golangci-lint fmt --config ./.golangci.yaml --verbose
 ```
 
+#### Redis
+use user "default" to connect
+
