@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
@@ -32,8 +33,9 @@ type WeatherProvider struct {
 }
 
 type Redis struct {
-	Url      string `yaml:"url" env:"REDIS_URL"`
-	Password string `yaml:"password" env:"REDIS_PASSWORD"`
+	Url      string        `yaml:"url" env:"REDIS_URL"`
+	Password string        `yaml:"password" env:"REDIS_PASSWORD"`
+	TTL      time.Duration `yaml:"ttl"`
 }
 
 type EmailService struct {
