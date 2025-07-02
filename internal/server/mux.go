@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 )
 
@@ -20,6 +21,8 @@ func InitMux(weatherHandler weatherHandler, subscriptionHandler subscriptionHand
 	mux.HandleFunc("POST /subscribe", subscriptionHandler.Subscribe)
 	mux.HandleFunc("GET /confirm/{token}", subscriptionHandler.Confirm)
 	mux.HandleFunc("GET /unsubscribe/{token}", subscriptionHandler.Unsubscribe)
+
+	mux.Handle("/metrics", promhttp.Handler())
 
 	return mux
 }

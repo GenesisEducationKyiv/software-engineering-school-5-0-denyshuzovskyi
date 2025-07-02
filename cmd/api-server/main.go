@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/metrics"
 	"log/slog"
 	"net"
 	"net/http"
@@ -62,6 +63,8 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 		return err
 	}
 
+	metrics.Init()
+
 	client := &http.Client{}
 	weatherapiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, client, log)
 	weatherapiProvider := weatherprovider.NewLoggingWeatherProvider("weatherapi.com", weatherprovider.NewWeatherapiProvider(weatherapiClient), weatherLog, log)
@@ -69,10 +72,10 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	weatherstackProvider := weatherprovider.NewLoggingWeatherProvider("weatherstack.com", weatherprovider.NewWeatherstackProvider(weatherstackClient), weatherLog, log)
 	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(log, weatherapiProvider, weatherstackProvider)
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: cfg.Redis.Url,
-		//Password: cfg.Redis.Password,
+		Addr:     cfg.Redis.Url,
+		Password: cfg.Redis.Password,
 	})
-	cachingWeatherProvider := weatherprovider.NewCachingWeatherProvider(redisClient, 15*time.Minute, chainWeatherProvider)
+	cachingWeatherProvider := weatherprovider.NewCachingWeatherProvider(redisClient, 15*time.Minute, chainWeatherProvider, metrics.WeatherCacheRequests, log)
 
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
 
