@@ -16,6 +16,7 @@ email-service:
 redis:
   url: localhost:6379
   password:
+  ttl: 15m
 emails:
   confirmation-email:
     subject: "Confirm subscription"
