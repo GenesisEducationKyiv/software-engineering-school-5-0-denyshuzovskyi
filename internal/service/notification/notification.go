@@ -22,18 +22,18 @@ func NewNotificationService(emailSender EmailSender) *NotificationService {
 	}
 }
 
-func (s *NotificationService) SendWeatherUpdateNotification(ctx context.Context, emailData config.EmailData, subscriptionDate dto.SubscriptionData, weather dto.WeatherDTO) error {
+func (s *NotificationService) SendWeatherUpdateNotification(ctx context.Context, emailData config.EmailData, subscriptionData dto.SubscriptionData, weather dto.WeatherDTO) error {
 	email := dto.SimpleEmail{
 		From:    emailData.From,
-		To:      subscriptionDate.Email,
+		To:      subscriptionData.Email,
 		Subject: emailData.Subject,
 		Text: fmt.Sprintf(
 			emailData.Text,
-			subscriptionDate.Location,
+			subscriptionData.Location,
 			weather.Temperature,
 			weather.Humidity,
 			weather.Description,
-			subscriptionDate.Token,
+			subscriptionData.Token,
 		),
 	}
 

@@ -12,8 +12,6 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/logger/noophandler"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/mapper"
-	nimbusvalidtor "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
-	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -51,9 +49,7 @@ func TestWeatherService_GetCurrentWeatherForLocation_Twice(t *testing.T) {
 	weatherRepositoryMock.EXPECT().FindLastUpdatedByLocation(ctx, mock.AnythingOfType("*sql.DB"), location).Return(&weatherToReturn, nil).Once()
 
 	log := slog.New(noophandler.NewNoOpHandler())
-
-	locationValidator := nimbusvalidtor.NewLocationValidator(validator.New())
-	weatherService := NewWeatherService(db, locationValidator, weatherProviderMock, weatherRepositoryMock, log)
+	weatherService := NewWeatherService(db, weatherProviderMock, weatherRepositoryMock, log)
 
 	for range 2 {
 		weatherDTO, err := weatherService.GetCurrentWeatherForLocation(ctx, location)

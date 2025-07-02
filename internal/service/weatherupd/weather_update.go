@@ -44,6 +44,7 @@ func (s *WeatherUpdateSendingService) SendWeatherUpdates(ctx context.Context, fr
 	subscriptionData, err := s.subscriptionService.PrepareSubscriptionDataForFrequency(ctx, frequency)
 	if err != nil {
 		s.log.Error("failed to get subscription data", "error", err)
+		return
 	}
 
 	failures := 0

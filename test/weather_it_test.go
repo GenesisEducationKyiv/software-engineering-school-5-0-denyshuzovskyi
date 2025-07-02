@@ -13,14 +13,13 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/emailclient"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config/email"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/database"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/httputil"
@@ -32,11 +31,11 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/subscription"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weather"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weatherprovider"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weatherupd"
-	nimbusvalidator "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
+	validators "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/validator"
 	"github.com/go-playground/validator/v10"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/ilyakaznacheev/cleanenv"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mailgun/mailgun-go/v4"
 	"github.com/stretchr/testify/require"
@@ -51,15 +50,11 @@ type TestEnv struct {
 	Cleanup func()
 }
 
-func SetupTestEnv(t *testing.T) *TestEnv {
+func SetUpTestEnv(t *testing.T) *TestEnv {
 	t.Helper()
 
 	if testing.Short() {
 		t.Skip()
-	}
-
-	if runtime.GOOS != "linux" {
-		t.Skip("Works only on Linux (Testcontainers)")
 	}
 
 	log := slog.New(noophandler.NewNoOpHandler())
@@ -93,25 +88,39 @@ func SetupTestEnv(t *testing.T) *TestEnv {
 }
 
 func TestGetWeatherIT(t *testing.T) {
-	env := SetupTestEnv(t)
+	env := SetUpTestEnv(t)
 	defer env.Cleanup()
 
-	currentWeatherData, err := os.ReadFile("./test_data/current_weather_success_resp.json")
+	// Client-interceptor for weatherapiClient
+	waClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusInternalServerError,
+			Body:       io.NopCloser(bytes.NewReader([]byte{})),
+			Header:     make(http.Header),
+		}, nil
+	})
+	weatherapiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", waClient, env.Log)
+	weatherapiProvider := weatherprovider.NewWeatherapiProvider(weatherapiClient)
+
+	// Client-interceptor for weatherstack
+	currentWeatherData, err := os.ReadFile("./test_data/weatherstack_success_resp.json")
 	require.NoError(t, err)
-	testClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
+	wsClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(bytes.NewReader(currentWeatherData)),
 			Header:     make(http.Header),
 		}, nil
 	})
+	weatherstackClient := weatherstack.NewClient("https://api.weatherstack.com/current", "key", wsClient, env.Log)
+	weatherstackProvider := weatherprovider.NewWeatherstackProvider(weatherstackClient)
 
-	weatherApiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", testClient, env.Log)
+	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(env.Log, weatherapiProvider, weatherstackProvider)
 	weatherRepository := postgresql.NewWeatherRepository()
 	validate := validator.New()
-	locationValidator := nimbusvalidator.NewLocationValidator(validate)
-	weatherService := weather.NewWeatherService(env.DB, locationValidator, weatherApiClient, weatherRepository, env.Log)
-	weatherHandler := handler.NewWeatherHandler(weatherService, env.Log)
+	weatherService := weather.NewWeatherService(env.DB, chainWeatherProvider, weatherRepository, env.Log)
+	locationValidator := validators.NewLocationValidator(validate)
+	weatherHandler := handler.NewWeatherHandler(weatherService, locationValidator, env.Log)
 
 	city := "Kyiv"
 
@@ -133,9 +142,9 @@ func TestGetWeatherIT(t *testing.T) {
 	err = json.Unmarshal(rr.Body.Bytes(), &actualWeatherDto)
 	require.NoError(t, err)
 
-	expectedTemp := float32(6.6)
-	expectedHum := float32(94)
-	expectedDesc := "Light drizzle"
+	expectedTemp := float32(16)
+	expectedHum := float32(67)
+	expectedDesc := "Clear "
 	delta := 0.01
 
 	require.InDelta(t, expectedTemp, actualWeatherDto.Temperature, delta)
@@ -151,26 +160,13 @@ func TestGetWeatherIT(t *testing.T) {
 }
 
 func TestFullCycleIT(t *testing.T) {
-	env := SetupTestEnv(t)
+	env := SetUpTestEnv(t)
 	defer env.Cleanup()
 
-	// EmailData
-	var cfg config.Config
-	err := cleanenv.ReadConfig("./../config/config.yaml", &cfg)
-	require.NoError(t, err)
+	cfg := config.ReadConfig("./../config/config.yaml")
 
-	emailDataMap := email.PrepareEmailData(&cfg)
-	confirmEmailData, confOk := emailDataMap["confirmation"]
-	require.True(t, confOk)
-	confirmSuccessEmailData, confSuccessOk := emailDataMap["confirmation-successful"]
-	require.True(t, confSuccessOk)
-	weatherEmailData, weatherOk := emailDataMap["weather"]
-	require.True(t, weatherOk)
-	unsubEmailData, unsubOk := emailDataMap["unsubscribe"]
-	require.True(t, unsubOk)
-
-	// Client-interceptor for weatherApiClient
-	currentWeatherData, err := os.ReadFile("./test_data/current_weather_success_resp.json")
+	// Client-interceptor for weatherapiClient
+	currentWeatherData, err := os.ReadFile("./test_data/weatherapi_success_resp.json")
 	require.NoError(t, err)
 	waClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
@@ -179,7 +175,8 @@ func TestFullCycleIT(t *testing.T) {
 			Header:     make(http.Header),
 		}, nil
 	})
-	weatherApiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", waClient, env.Log)
+	weatherapiClient := weatherapi.NewClient("https://api.weatherapi.com/v1", "key", waClient, env.Log)
+	weatherapiProvider := weatherprovider.NewWeatherapiProvider(weatherapiClient)
 
 	// Client-interceptor for emailClient
 	mailgunRespData, err := os.ReadFile("./test_data/mailgun_success_resp.json")
@@ -223,26 +220,24 @@ func TestFullCycleIT(t *testing.T) {
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
 
-	validate := validator.New()
-	subscriptionValidator := nimbusvalidator.NewSubscriptionValidator(validate)
 	subscriptionService := subscription.NewSubscriptionService(
 		env.DB,
-		subscriptionValidator,
-		weatherApiClient,
+		weatherapiProvider,
 		subscriberRepository,
 		subscriptionRepository,
 		tokenRepository,
 		emailClient,
-		confirmEmailData,
-		confirmSuccessEmailData,
-		unsubEmailData,
+		cfg.Emails.ConfirmationEmail,
+		cfg.Emails.ConfirmationSuccessfulEmail,
+		cfg.Emails.UnsubscribeEmail,
 		env.Log)
 	notificationService := notification.NewNotificationService(emailClient)
-	locationValidator := nimbusvalidator.NewLocationValidator(validate)
-	weatherService := weather.NewWeatherService(env.DB, locationValidator, weatherApiClient, weatherRepository, env.Log)
+	weatherService := weather.NewWeatherService(env.DB, weatherapiProvider, weatherRepository, env.Log)
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, env.Log)
 
-	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, env.Log)
+	validate := validator.New()
+	subscriptionValidator := validators.NewSubscriptionValidator(validate)
+	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, subscriptionValidator, env.Log)
 
 	// Multiplexer
 	mux := http.NewServeMux()
@@ -276,16 +271,16 @@ func TestFullCycleIT(t *testing.T) {
 	// Imitate notification job trigger
 	sentEmails = sentEmails[:0]
 	require.Empty(t, sentEmails)
-	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Hourly, weatherEmailData)
+	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Hourly, cfg.Emails.WeatherEmail)
 	require.Empty(t, sentEmails)
-	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Daily, weatherEmailData)
+	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Daily, cfg.Emails.WeatherEmail)
 	require.Len(t, sentEmails, 1)
-	require.Equal(t, weatherEmailData.Subject, sentEmails[0].Subject)
+	require.Equal(t, cfg.Emails.WeatherEmail.Subject, sentEmails[0].Subject)
 
 	// Unsubscribe
 	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/unsubscribe/%s", lastToken), nil)
 	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	require.Equal(t, unsubEmailData.Text, sentEmails[len(sentEmails)-1].Text)
+	require.Equal(t, cfg.Emails.UnsubscribeEmail.Text, sentEmails[len(sentEmails)-1].Text)
 }
