@@ -16,15 +16,21 @@ type SubscriptionService interface {
 	Unsubscribe(context.Context, string) error
 }
 
-type SubscriptionHandler struct {
-	subscriptionService SubscriptionService
-	log                 *slog.Logger
+type SubscriptionValidator interface {
+	ValidateSubscriptionRequest(dto.SubscriptionRequest) error
 }
 
-func NewSubscriptionHandler(subscriptionService SubscriptionService, log *slog.Logger) *SubscriptionHandler {
+type SubscriptionHandler struct {
+	subscriptionService   SubscriptionService
+	subscriptionValidator SubscriptionValidator
+	log                   *slog.Logger
+}
+
+func NewSubscriptionHandler(subscriptionService SubscriptionService, subscriptionValidator SubscriptionValidator, log *slog.Logger) *SubscriptionHandler {
 	return &SubscriptionHandler{
-		subscriptionService: subscriptionService,
-		log:                 log,
+		subscriptionService:   subscriptionService,
+		subscriptionValidator: subscriptionValidator,
+		log:                   log,
 	}
 }
 
@@ -41,12 +47,13 @@ func (h *SubscriptionHandler) Subscribe(w http.ResponseWriter, r *http.Request) 
 	subscriptionReq.City = r.FormValue("city")
 	subscriptionReq.Frequency = r.FormValue("frequency")
 
+	if err = h.subscriptionValidator.ValidateSubscriptionRequest(subscriptionReq); err != nil {
+		http.Error(w, "invalid input", http.StatusBadRequest)
+		h.log.Error("err validating subs req", "error", err)
+		return
+	}
+
 	if err = h.subscriptionService.Subscribe(r.Context(), subscriptionReq); err != nil {
-		if errors.Is(err, commonerrors.ErrValidationFailed) {
-			http.Error(w, "invalid input", http.StatusBadRequest)
-			h.log.Error("error validating data", "error", err)
-			return
-		}
 		if errors.Is(err, commonerrors.ErrLocationNotFound) {
 			http.Error(w, "invalid input", http.StatusBadRequest)
 			h.log.Error("couldn't validate city", "error", err)

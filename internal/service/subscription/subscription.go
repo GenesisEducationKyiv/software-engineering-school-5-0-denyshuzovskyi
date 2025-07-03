@@ -16,10 +16,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type SubscriptionValidator interface {
-	ValidateSubscriptionRequest(dto.SubscriptionRequest) error
-}
-
 type WeatherProvider interface {
 	GetCurrentWeather(context.Context, string) (*dto.WeatherWithLocationDTO, error)
 }
@@ -51,7 +47,6 @@ type EmailSender interface {
 
 type SubscriptionService struct {
 	db                      *sql.DB
-	subscriptionValidator   SubscriptionValidator
 	weatherProvider         WeatherProvider
 	subscriberRepository    SubscriberRepository
 	subscriptionRepository  SubscriptionRepository
@@ -65,7 +60,6 @@ type SubscriptionService struct {
 
 func NewSubscriptionService(
 	db *sql.DB,
-	subscriptionValidator SubscriptionValidator,
 	weatherProvider WeatherProvider,
 	subscriberRepository SubscriberRepository,
 	subscriptionRepository SubscriptionRepository,
@@ -78,7 +72,6 @@ func NewSubscriptionService(
 ) *SubscriptionService {
 	return &SubscriptionService{
 		db:                      db,
-		subscriptionValidator:   subscriptionValidator,
 		weatherProvider:         weatherProvider,
 		subscriberRepository:    subscriberRepository,
 		subscriptionRepository:  subscriptionRepository,
@@ -92,10 +85,6 @@ func NewSubscriptionService(
 }
 
 func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.SubscriptionRequest) error {
-	if err := s.subscriptionValidator.ValidateSubscriptionRequest(subReq); err != nil {
-		return fmt.Errorf("validate subscription request: %w: %v", commonerrors.ErrValidationFailed, err)
-	}
-
 	weatherWithLocationDTO, err := s.weatherProvider.GetCurrentWeather(ctx, subReq.City)
 	if err != nil {
 		if errors.Is(err, commonerrors.ErrLocationNotFound) {
