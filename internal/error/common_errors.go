@@ -8,6 +8,4 @@ var (
 	ErrInvalidToken              = errors.New("invalid token")
 	ErrTokenNotFound             = errors.New("token not found")
 	ErrUnexpectedState           = errors.New("unexpected state")
-
-	ErrUnexpectedStatusCode = errors.New("unexpected status code")
 )

@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/cache"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/emailclient"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/cron"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/database"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/logger"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/metrics"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/postgresql"
@@ -74,7 +76,9 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 		Addr:     cfg.Redis.Url,
 		Password: cfg.Redis.Password,
 	})
-	cachingWeatherProvider := weatherprovider.NewCachingWeatherProvider(redisClient, cfg.Redis.TTL, chainWeatherProvider, metrics.WeatherCacheRequests, log)
+	redisCache := cache.NewRedisCache(redisClient)
+	weatherCache := cache.NewJSONCache[dto.WeatherWithLocationDTO](redisCache, cfg.Redis.TTL)
+	cachingWeatherProvider := weatherprovider.NewCachingWeatherProvider(weatherCache, chainWeatherProvider, metrics.WeatherCacheRequests, log)
 
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
 
