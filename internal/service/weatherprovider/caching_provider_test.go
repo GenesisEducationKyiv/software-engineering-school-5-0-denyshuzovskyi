@@ -10,6 +10,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/logger/noophandler"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
@@ -20,18 +21,12 @@ import (
 func TestCachingWeatherProvider_CacheMissThenHit(t *testing.T) {
 	cacheMock := NewMockCache(t)
 	providerMock := NewMockWeatherProvider(t)
-	metrics := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "weather_cache_requests_total",
-			Help: "Total weather cache requests partitioned by result (hit/miss/error).",
-		},
-		[]string{"result"},
-	)
+
 	reg := prometheus.NewRegistry()
-	require.NoError(t, reg.Register(metrics))
+	require.NoError(t, reg.Register(metrics.WeatherCacheRequests))
 	log := slog.New(noophandler.NewNoOpHandler())
 
-	cp := NewCachingWeatherProvider(cacheMock, providerMock, metrics, log)
+	cp := NewCachingWeatherProvider(cacheMock, providerMock, metrics.WeatherCacheRequests, log)
 
 	location := "Kyiv"
 	key := "weather:" + location
@@ -57,8 +52,8 @@ func TestCachingWeatherProvider_CacheMissThenHit(t *testing.T) {
 	require.NoError(t, err1)
 	assert.Equal(t, expectedWeather, result1)
 	delta := 0.01
-	require.InDelta(t, float64(1), testutil.ToFloat64(metrics.WithLabelValues("miss")), delta)
-	require.InDelta(t, float64(0), testutil.ToFloat64(metrics.WithLabelValues("hit")), delta)
+	require.InDelta(t, float64(1), testutil.ToFloat64(metrics.WeatherCacheRequests.WithLabelValues("miss")), delta)
+	require.InDelta(t, float64(0), testutil.ToFloat64(metrics.WeatherCacheRequests.WithLabelValues("hit")), delta)
 
 	cacheMock.EXPECT().Get(mock.Anything, key).Return(*expectedWeather, nil).Once()
 
@@ -66,6 +61,6 @@ func TestCachingWeatherProvider_CacheMissThenHit(t *testing.T) {
 	result2, err2 := cp.GetCurrentWeather(t.Context(), location)
 	require.NoError(t, err2)
 	assert.Equal(t, expectedWeather, result2)
-	require.InDelta(t, float64(1), testutil.ToFloat64(metrics.WithLabelValues("miss")), delta)
-	require.InDelta(t, float64(1), testutil.ToFloat64(metrics.WithLabelValues("hit")), delta)
+	require.InDelta(t, float64(1), testutil.ToFloat64(metrics.WeatherCacheRequests.WithLabelValues("miss")), delta)
+	require.InDelta(t, float64(1), testutil.ToFloat64(metrics.WeatherCacheRequests.WithLabelValues("hit")), delta)
 }

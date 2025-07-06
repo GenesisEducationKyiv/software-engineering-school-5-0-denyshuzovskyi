@@ -5,7 +5,6 @@ package test
 import (
 	"bytes"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -15,7 +14,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/cache"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/emailclient"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherstack"
@@ -25,6 +26,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/httputil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/logger/noophandler"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/lib/testutil"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/metrics"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/model"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/repository/postgresql"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/server/handler"
@@ -38,9 +40,13 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mailgun/mailgun-go/v4"
+	"github.com/prometheus/client_golang/prometheus"
+	ptestutil "github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -87,9 +93,36 @@ func SetUpTestEnv(t *testing.T) *TestEnv {
 	}
 }
 
+type TestCache struct {
+	RedisCache *cache.RedisCache
+	Cleanup    func()
+}
+
+func SetUpCache(t *testing.T) *TestCache {
+	t.Helper()
+
+	redisContainer, err := tcredis.Run(t.Context(), "redis:8-alpine")
+	require.NoError(t, err)
+	endpoint, err := redisContainer.Endpoint(t.Context(), "")
+	require.NoError(t, err)
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: endpoint,
+	})
+
+	return &TestCache{
+		RedisCache: cache.NewRedisCache(redisClient),
+		Cleanup: func() {
+			require.NoError(t, redisContainer.Terminate(t.Context()))
+		},
+	}
+}
+
 func TestGetWeatherIT(t *testing.T) {
 	env := SetUpTestEnv(t)
 	defer env.Cleanup()
+	tCache := SetUpCache(t)
+	defer tCache.Cleanup()
 
 	// Client-interceptor for weatherapiClient
 	waClient := httputil.NewTestHTTPClient(func(req *http.Request) (*http.Response, error) {
@@ -116,8 +149,15 @@ func TestGetWeatherIT(t *testing.T) {
 	weatherstackProvider := weatherprovider.NewWeatherstackProvider(weatherstackClient)
 
 	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(env.Log, weatherapiProvider, weatherstackProvider)
+	weatherCache := cache.NewJSONCache[dto.WeatherWithLocationDTO](tCache.RedisCache, 5*time.Minute)
+
+	reg := prometheus.NewRegistry()
+	require.NoError(t, reg.Register(metrics.WeatherCacheRequests))
+
+	cachingWeatherProvider := weatherprovider.NewCachingWeatherProvider(weatherCache, chainWeatherProvider, metrics.WeatherCacheRequests, env.Log)
+
 	validate := validator.New()
-	weatherService := weather.NewWeatherService(chainWeatherProvider, env.Log)
+	weatherService := weather.NewWeatherService(cachingWeatherProvider, env.Log)
 	locationValidator := validators.NewLocationValidator(validate)
 	weatherHandler := handler.NewWeatherHandler(weatherService, locationValidator, env.Log)
 
@@ -131,24 +171,25 @@ func TestGetWeatherIT(t *testing.T) {
 	req, err := http.NewRequest("GET", u.String(), nil)
 	require.NoError(t, err)
 
-	rr := httptest.NewRecorder()
-
-	weatherHandler.GetCurrentWeather(rr, req)
-
-	require.Equal(t, http.StatusOK, rr.Code)
-
-	var actualWeatherDto dto.WeatherDTO
-	err = json.Unmarshal(rr.Body.Bytes(), &actualWeatherDto)
-	require.NoError(t, err)
-
+	// Expected
 	expectedTemp := float32(16)
 	expectedHum := float32(67)
 	expectedDesc := "Clear "
 	delta := 0.01
 
-	require.InDelta(t, expectedTemp, actualWeatherDto.Temperature, delta)
-	require.InDelta(t, expectedHum, actualWeatherDto.Humidity, delta)
-	require.Equal(t, expectedDesc, actualWeatherDto.Description)
+	// First req
+	rr := httptest.NewRecorder()
+	weatherHandler.GetCurrentWeather(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	assertWeatherResponse(t, rr.Body, expectedTemp, expectedHum, expectedDesc, delta)
+	assertWeatherMetrics(t, metrics.WeatherCacheRequests, 1, 0, 0, delta)
+
+	// Second req
+	rr = httptest.NewRecorder()
+	weatherHandler.GetCurrentWeather(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	assertWeatherResponse(t, rr.Body, expectedTemp, expectedHum, expectedDesc, delta)
+	assertWeatherMetrics(t, metrics.WeatherCacheRequests, 1, 1, 0, delta)
 }
 
 func TestFullCycleIT(t *testing.T) {
@@ -274,4 +315,34 @@ func TestFullCycleIT(t *testing.T) {
 	mux.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, cfg.Emails.UnsubscribeEmail.Text, sentEmails[len(sentEmails)-1].Text)
+}
+
+func assertWeatherResponse(
+	t *testing.T,
+	body io.Reader,
+	expectedTemp,
+	expectedHum float32,
+	expectedDesc string,
+	delta float64,
+) {
+	t.Helper()
+	actualWeatherDto, err := testutil.UnmarshalJSONFromReader[dto.WeatherDTO](body)
+	require.NoError(t, err)
+
+	require.InDelta(t, expectedTemp, actualWeatherDto.Temperature, delta)
+	require.InDelta(t, expectedHum, actualWeatherDto.Humidity, delta)
+	require.Equal(t, expectedDesc, actualWeatherDto.Description)
+}
+
+func assertWeatherMetrics(
+	t *testing.T,
+	metrics *prometheus.CounterVec,
+	miss, hit, errCount int,
+	delta float64,
+) {
+	t.Helper()
+
+	require.InDelta(t, float64(miss), ptestutil.ToFloat64(metrics.WithLabelValues("miss")), delta)
+	require.InDelta(t, float64(hit), ptestutil.ToFloat64(metrics.WithLabelValues("hit")), delta)
+	require.InDelta(t, float64(errCount), ptestutil.ToFloat64(metrics.WithLabelValues("error")), delta)
 }

@@ -22,12 +22,12 @@ type CachingWeatherProvider struct {
 	log      *slog.Logger
 }
 
-func NewCachingWeatherProvider(cache Cache, provider WeatherProvider, metrics *prometheus.CounterVec, logger *slog.Logger) *CachingWeatherProvider {
+func NewCachingWeatherProvider(cache Cache, provider WeatherProvider, metrics *prometheus.CounterVec, log *slog.Logger) *CachingWeatherProvider {
 	return &CachingWeatherProvider{
 		cache:    cache,
 		provider: provider,
 		metrics:  metrics,
-		log:      logger,
+		log:      log,
 	}
 }
 
