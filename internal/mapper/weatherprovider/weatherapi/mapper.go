@@ -1,10 +1,11 @@
 package weatherapi
 
 import (
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 )
 
-func CurrentWeatherToWeatherWithLocationDTO(currentWeather CurrentWeather) dto.WeatherWithLocationDTO {
+func CurrentWeatherToWeatherWithLocationDTO(currentWeather weatherapi.CurrentWeather) dto.WeatherWithLocationDTO {
 	return dto.WeatherWithLocationDTO{
 		Weather: dto.WeatherDTO{
 			Temperature: currentWeather.Current.TempC,

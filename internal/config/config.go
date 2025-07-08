@@ -8,11 +8,12 @@ import (
 )
 
 type Config struct {
-	HTTPServer      HTTPServer      `yaml:"server"`
-	Datasource      Datasource      `yaml:"datasource"`
-	WeatherProvider WeatherProvider `yaml:"weather-provider"`
-	EmailService    EmailService    `yaml:"email-service"`
-	Emails          []EmailData     `yaml:"emails"`
+	HTTPServer              HTTPServer      `yaml:"server"`
+	Datasource              Datasource      `yaml:"datasource"`
+	WeatherProvider         WeatherProvider `yaml:"weather-provider" env-prefix:"WEATHER_PROVIDER_"`
+	FallbackWeatherProvider WeatherProvider `yaml:"fallback-weather-provider" env-prefix:"FALLBACK_WEATHER_PROVIDER_"`
+	EmailService            EmailService    `yaml:"email-service"`
+	Emails                  Emails          `yaml:"emails"`
 }
 
 type HTTPServer struct {
@@ -25,8 +26,8 @@ type Datasource struct {
 }
 
 type WeatherProvider struct {
-	Url string `yaml:"url" env:"WEATHER_PROVIDER_URL"`
-	Key string `yaml:"key" env:"WEATHER_PROVIDER_KEY"`
+	Url string `yaml:"url" env:"URL"`
+	Key string `yaml:"key" env:"KEY"`
 }
 
 type EmailService struct {
@@ -36,10 +37,20 @@ type EmailService struct {
 }
 
 type EmailData struct {
-	Name    string `yaml:"name"`
 	Subject string `yaml:"subject"`
 	Text    string `yaml:"text"`
 	From    string
+}
+
+func (ed *EmailData) fillOutFromEmail(from string) {
+	ed.From = from
+}
+
+type Emails struct {
+	ConfirmationEmail           EmailData `yaml:"confirmation-email"`
+	ConfirmationSuccessfulEmail EmailData `yaml:"confirmation-successful-email"`
+	WeatherEmail                EmailData `yaml:"weather-email"`
+	UnsubscribeEmail            EmailData `yaml:"unsubscribe-email"`
 }
 
 func ReadConfig(configPath string) *Config {
@@ -56,6 +67,11 @@ func ReadConfig(configPath string) *Config {
 	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
 		log.Fatalf("cannot read config: %s", err)
 	}
+
+	cfg.Emails.ConfirmationEmail.fillOutFromEmail(cfg.EmailService.Sender)
+	cfg.Emails.ConfirmationSuccessfulEmail.fillOutFromEmail(cfg.EmailService.Sender)
+	cfg.Emails.WeatherEmail.fillOutFromEmail(cfg.EmailService.Sender)
+	cfg.Emails.UnsubscribeEmail.fillOutFromEmail(cfg.EmailService.Sender)
 
 	return &cfg
 }

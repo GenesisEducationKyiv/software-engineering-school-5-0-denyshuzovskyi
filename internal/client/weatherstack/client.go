@@ -1,4 +1,4 @@
-package weatherapi
+package weatherstack
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"path"
 
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
 )
@@ -19,7 +18,7 @@ type Client struct {
 	log     *slog.Logger
 }
 
-func NewClient(baseURL, apiKey string, client *http.Client, log *slog.Logger) *Client {
+func NewClient(baseURL string, apiKey string, client *http.Client, log *slog.Logger) *Client {
 	return &Client{
 		baseURL: baseURL,
 		apiKey:  apiKey,
@@ -33,12 +32,10 @@ func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*Curre
 	if err != nil {
 		return nil, fmt.Errorf("parse url: %w", err)
 	}
-	u.Path = path.Join(u.Path, "current.json")
 
 	q := u.Query()
-	q.Set("key", c.apiKey)
-	q.Set("q", location)
-	q.Set("aqi", "no")
+	q.Set("access_key", c.apiKey)
+	q.Set("query", location)
 	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
@@ -50,18 +47,13 @@ func (c *Client) GetCurrentWeather(ctx context.Context, location string) (*Curre
 	if err != nil {
 		return nil, fmt.Errorf("perform request: %w", err)
 	}
-
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			c.log.Error("failed to close body", "error", err)
 		}
 	}()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-	case http.StatusBadRequest:
-		return nil, commonerrors.ErrLocationNotFound
-	default:
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%w status code: %d", commonerrors.ErrUnexpectedStatusCode, resp.StatusCode)
 	}
 
