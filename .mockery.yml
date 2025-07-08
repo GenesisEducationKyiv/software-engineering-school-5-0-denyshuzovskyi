@@ -20,3 +20,6 @@ packages:
   github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/notification:
     config:
       all: true
+  github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/service/weatherprovider:
+    config:
+      all: true
