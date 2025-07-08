@@ -1,0 +1,28 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - asciicheck
+    - bodyclose
+    - canonicalheader
+    - contextcheck
+    - err113
+    - errchkjson
+    - loggercheck
+    - sloglint
+    - sqlclosecheck
+    - testifylint
+    - thelper
+    - usetesting
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+
+run:
+  timeout: 5m
+  relative-path-mode: gomod
+  tests: true
+  modules-download-mode: readonly
