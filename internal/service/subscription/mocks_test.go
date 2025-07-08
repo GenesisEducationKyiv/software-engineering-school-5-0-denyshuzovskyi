@@ -445,6 +445,80 @@ func (_c *MockSubscriptionRepository_DeleteById_Call) RunAndReturn(run func(cont
 	return _c
 }
 
+// FindAllByFrequencyAndConfirmedStatus provides a mock function for the type MockSubscriptionRepository
+func (_mock *MockSubscriptionRepository) FindAllByFrequencyAndConfirmedStatus(context1 context.Context, sQLExecutor sqlutil.SQLExecutor, frequency model.Frequency) ([]*model.Subscription, error) {
+	ret := _mock.Called(context1, sQLExecutor, frequency)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindAllByFrequencyAndConfirmedStatus")
+	}
+
+	var r0 []*model.Subscription
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, sqlutil.SQLExecutor, model.Frequency) ([]*model.Subscription, error)); ok {
+		return returnFunc(context1, sQLExecutor, frequency)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, sqlutil.SQLExecutor, model.Frequency) []*model.Subscription); ok {
+		r0 = returnFunc(context1, sQLExecutor, frequency)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*model.Subscription)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, sqlutil.SQLExecutor, model.Frequency) error); ok {
+		r1 = returnFunc(context1, sQLExecutor, frequency)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSubscriptionRepository_FindAllByFrequencyAndConfirmedStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindAllByFrequencyAndConfirmedStatus'
+type MockSubscriptionRepository_FindAllByFrequencyAndConfirmedStatus_Call struct {
+	*mock.Call
+}
+
+// FindAllByFrequencyAndConfirmedStatus is a helper method to define mock.On call
+//   - context1 context.Context
+//   - sQLExecutor sqlutil.SQLExecutor
+//   - frequency model.Frequency
+func (_e *MockSubscriptionRepository_Expecter) FindAllByFrequencyAndConfirmedStatus(context1 interface{}, sQLExecutor interface{}, frequency interface{}) *MockSubscriptionRepository_FindAllByFrequencyAndConfirmedStatus_Call {
+	return &MockSubscriptionRepository_FindAllByFrequencyAndConfirmedStatus_Call{Call: _e.mock.On("FindAllByFrequencyAndConfirmedStatus", context1, sQLExecutor, frequency)}
+}
+
+func (_c *MockSubscriptionRepository_FindAllByFrequencyAndConfirmedStatus_Call) Run(run func(context1 context.Context, sQLExecutor sqlutil.SQLExecutor, frequency model.Frequency)) *MockSubscriptionRepository_FindAllByFrequencyAndConfirmedStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 sqlutil.SQLExecutor
+		if args[1] != nil {
+			arg1 = args[1].(sqlutil.SQLExecutor)
+		}
+		var arg2 model.Frequency
+		if args[2] != nil {
+			arg2 = args[2].(model.Frequency)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSubscriptionRepository_FindAllByFrequencyAndConfirmedStatus_Call) Return(subscriptions []*model.Subscription, err error) *MockSubscriptionRepository_FindAllByFrequencyAndConfirmedStatus_Call {
+	_c.Call.Return(subscriptions, err)
+	return _c
+}
+
+func (_c *MockSubscriptionRepository_FindAllByFrequencyAndConfirmedStatus_Call) RunAndReturn(run func(context1 context.Context, sQLExecutor sqlutil.SQLExecutor, frequency model.Frequency) ([]*model.Subscription, error)) *MockSubscriptionRepository_FindAllByFrequencyAndConfirmedStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FindById provides a mock function for the type MockSubscriptionRepository
 func (_mock *MockSubscriptionRepository) FindById(context1 context.Context, sQLExecutor sqlutil.SQLExecutor, n int32) (*model.Subscription, error) {
 	ret := _mock.Called(context1, sQLExecutor, n)
@@ -770,6 +844,86 @@ type MockTokenRepository_Expecter struct {
 
 func (_m *MockTokenRepository) EXPECT() *MockTokenRepository_Expecter {
 	return &MockTokenRepository_Expecter{mock: &_m.Mock}
+}
+
+// FindBySubscriptionIdAndType provides a mock function for the type MockTokenRepository
+func (_mock *MockTokenRepository) FindBySubscriptionIdAndType(context1 context.Context, sQLExecutor sqlutil.SQLExecutor, n int32, tokenType model.TokenType) (*model.Token, error) {
+	ret := _mock.Called(context1, sQLExecutor, n, tokenType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindBySubscriptionIdAndType")
+	}
+
+	var r0 *model.Token
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, sqlutil.SQLExecutor, int32, model.TokenType) (*model.Token, error)); ok {
+		return returnFunc(context1, sQLExecutor, n, tokenType)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, sqlutil.SQLExecutor, int32, model.TokenType) *model.Token); ok {
+		r0 = returnFunc(context1, sQLExecutor, n, tokenType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Token)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, sqlutil.SQLExecutor, int32, model.TokenType) error); ok {
+		r1 = returnFunc(context1, sQLExecutor, n, tokenType)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTokenRepository_FindBySubscriptionIdAndType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindBySubscriptionIdAndType'
+type MockTokenRepository_FindBySubscriptionIdAndType_Call struct {
+	*mock.Call
+}
+
+// FindBySubscriptionIdAndType is a helper method to define mock.On call
+//   - context1 context.Context
+//   - sQLExecutor sqlutil.SQLExecutor
+//   - n int32
+//   - tokenType model.TokenType
+func (_e *MockTokenRepository_Expecter) FindBySubscriptionIdAndType(context1 interface{}, sQLExecutor interface{}, n interface{}, tokenType interface{}) *MockTokenRepository_FindBySubscriptionIdAndType_Call {
+	return &MockTokenRepository_FindBySubscriptionIdAndType_Call{Call: _e.mock.On("FindBySubscriptionIdAndType", context1, sQLExecutor, n, tokenType)}
+}
+
+func (_c *MockTokenRepository_FindBySubscriptionIdAndType_Call) Run(run func(context1 context.Context, sQLExecutor sqlutil.SQLExecutor, n int32, tokenType model.TokenType)) *MockTokenRepository_FindBySubscriptionIdAndType_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 sqlutil.SQLExecutor
+		if args[1] != nil {
+			arg1 = args[1].(sqlutil.SQLExecutor)
+		}
+		var arg2 int32
+		if args[2] != nil {
+			arg2 = args[2].(int32)
+		}
+		var arg3 model.TokenType
+		if args[3] != nil {
+			arg3 = args[3].(model.TokenType)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTokenRepository_FindBySubscriptionIdAndType_Call) Return(token *model.Token, err error) *MockTokenRepository_FindBySubscriptionIdAndType_Call {
+	_c.Call.Return(token, err)
+	return _c
+}
+
+func (_c *MockTokenRepository_FindBySubscriptionIdAndType_Call) RunAndReturn(run func(context1 context.Context, sQLExecutor sqlutil.SQLExecutor, n int32, tokenType model.TokenType) (*model.Token, error)) *MockTokenRepository_FindBySubscriptionIdAndType_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // FindByToken provides a mock function for the type MockTokenRepository
