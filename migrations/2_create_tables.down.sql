@@ -1,4 +1,3 @@
 DROP TABLE IF EXISTS token;
 DROP TABLE IF EXISTS subscription;
 DROP TABLE IF EXISTS subscriber;
-DROP TABLE IF EXISTS weather;

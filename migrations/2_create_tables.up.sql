@@ -29,14 +29,3 @@ CREATE TABLE token
     expires_at      TIMESTAMP  NOT NULL,
     used_at         TIMESTAMP
 );
-
-CREATE TABLE weather
-(
-    location_name VARCHAR(60)      NOT NULL,
-    last_updated TIMESTAMP     NOT NULL,
-    fetched_at   TIMESTAMP     NOT NULL,
-    temperature  NUMERIC(5, 2) NOT NULL,
-    humidity     NUMERIC(5, 2) NOT NULL CHECK (humidity BETWEEN 0 AND 100),
-    description  VARCHAR(400)  NOT NULL,
-    PRIMARY KEY (location_name, last_updated)
-);

@@ -16,9 +16,9 @@ type Location struct {
 }
 
 type WeatherWithLocationDTO struct {
-	Weather     WeatherDTO
-	Location    Location
-	LastUpdated int64
+	Weather     WeatherDTO `json:"weather"`
+	Location    Location   `json:"location"`
+	LastUpdated int64      `json:"last_updated"`
 }
 
 // LogValue implements slog.LogValuer
