@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package notification.v1;
+option go_package = "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1";
+
+message WeatherRequest {
+  string location = 1;
+  float temperature = 2;
+  float humidity = 3;
+  string description = 4;
+}
+
+message NotificationRequest {
+  string to = 1;
+}
+
+message NotificationWithTokenRequest {
+  NotificationRequest notification = 1;
+  string token = 2;
+}
+
+message WeatherUpdateNotificationRequest {
+  NotificationWithTokenRequest notification_with_token = 1;
+  WeatherRequest weather = 2;
+}
+
+
+message SendConfirmationRequest {
+  NotificationWithTokenRequest notification_with_token = 1;
+}
+
+message SendConfirmationResponse {}
+
+
+message SendConfirmationSuccessRequest {
+  NotificationWithTokenRequest notification_with_token = 1;
+}
+
+message SendConfirmationSuccessResponse {}
+
+
+message SendUnsubscribeSuccessRequest {
+  NotificationRequest notification = 1;
+}
+
+message SendUnsubscribeSuccessResponse {}
+
+
+message SendWeatherUpdateRequest {
+  WeatherUpdateNotificationRequest weather_update_notification = 1;
+}
+
+message SendWeatherUpdateResponse {}
+
+
+service NotificationService {
+  rpc SendConfirmation(SendConfirmationRequest) returns (SendConfirmationResponse);
+  rpc SendConfirmationSuccess(SendConfirmationSuccessRequest) returns (SendConfirmationSuccessResponse);
+  rpc SendUnsubscribeSuccess(SendUnsubscribeSuccessRequest) returns (SendUnsubscribeSuccessResponse);
+  rpc SendWeatherUpdate(SendWeatherUpdateRequest) returns (SendWeatherUpdateResponse);
+}

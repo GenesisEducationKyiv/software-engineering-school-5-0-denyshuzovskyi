@@ -16,12 +16,20 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.3'
+          go-version: '1.24.4'
 
-      - name: Run golangci-lint
+      - name: Lint weather-upd-subscription-srv
         uses: golangci/golangci-lint-action@v8
         with:
           version: v2.1
+          working-directory: ./weather-upd-subscription-srv
+
+      - name: Lint notification-srv
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1
+          working-directory: ./notification-srv
+
 
   test:
     name: Test
@@ -33,13 +41,19 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.3'
+          go-version: '1.24.4'
 
       - name: Install dependencies
         run: go mod download
 
-      - name: Run unit tests
-        run: go test -v ./...
+      - name: Run unit tests (weather-upd-subscription-srv)
+        run: go test -v ./weather-upd-subscription-srv/...
 
-      - name: Run integration tests
-        run: go test -v --tags=integration ./...
+      - name: Run integration tests (weather-upd-subscription-srv)
+        run: go test -v --tags=integration ./weather-upd-subscription-srv/...
+
+      - name: Run unit tests (notification-srv)
+        run: go test -v ./notification-srv/...
+
+      - name: Run integration tests (notification-srv)
+        run: go test -v --tags=integration ./notification-srv/...

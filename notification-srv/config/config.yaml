@@ -1,0 +1,20 @@
+grpc-server:
+  host: "0.0.0.0"
+  port: "50051"
+email-service:
+  domain:
+  key:
+  sender:
+email-templates:
+  confirmation:
+    subject: "Confirm subscription"
+    text: "To confirm your subscription use http://db35m6zjaamdj.cloudfront.net/api/confirm/%s"
+  confirmation-success:
+    subject: "Confirmation successful"
+    text: "You have successfully subscribed for weather update. To unsubscribe use http://db35m6zjaamdj.cloudfront.net/api/unsubscribe/%s"
+  weather-update:
+    subject: "Weather Update"
+    text: "Weather for %s: Temp: %f Hum: %f Desc: %s To unsubscribe use http://db35m6zjaamdj.cloudfront.net/api/unsubscribe/%s"
+  unsubscribe-success:
+    subject: "End of subscription"
+    text: "You have successfully unsubscribed"
