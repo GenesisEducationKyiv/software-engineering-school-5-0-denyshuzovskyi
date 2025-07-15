@@ -39,29 +39,6 @@ jobs:
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           working-directory: ${{ matrix.modules }}
-#  golangci:
-#    name: Lint
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Checkout code
-#        uses: actions/checkout@v4
-#
-#      - name: Set up Go
-#        uses: actions/setup-go@v5
-#        with:
-#          go-version: '1.24.4'
-#
-#      - name: Lint weather-upd-subscription-srv
-#        uses: golangci/golangci-lint-action@v8
-#        with:
-#          version: v2.1
-#          working-directory: ./weather-upd-subscription-srv
-#
-#      - name: Lint notification-srv
-#        uses: golangci/golangci-lint-action@v8
-#        with:
-#          version: v2.1
-#          working-directory: ./notification-srv
 
 
   test:
