@@ -7,7 +7,6 @@ import (
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/dto"
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/internal/error"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Cache interface {
@@ -15,14 +14,20 @@ type Cache interface {
 	Get(context.Context, string) (dto.WeatherWithLocationDTO, error)
 }
 
+type CacheMetrics interface {
+	RecordCacheHit()
+	RecordCacheMiss()
+	RecordCacheError()
+}
+
 type CachingWeatherProvider struct {
 	cache    Cache
 	provider WeatherProvider
-	metrics  *prometheus.CounterVec
+	metrics  CacheMetrics
 	log      *slog.Logger
 }
 
-func NewCachingWeatherProvider(cache Cache, provider WeatherProvider, metrics *prometheus.CounterVec, log *slog.Logger) *CachingWeatherProvider {
+func NewCachingWeatherProvider(cache Cache, provider WeatherProvider, metrics CacheMetrics, log *slog.Logger) *CachingWeatherProvider {
 	return &CachingWeatherProvider{
 		cache:    cache,
 		provider: provider,
@@ -36,14 +41,14 @@ func (p *CachingWeatherProvider) GetCurrentWeather(ctx context.Context, location
 
 	weatherWithLocation, err := p.cache.Get(ctx, key)
 	if err == nil {
-		p.metrics.WithLabelValues("hit").Inc()
+		p.metrics.RecordCacheHit()
 		p.log.Debug("cache hit", "key", key)
 		return &weatherWithLocation, nil
 	} else if errors.Is(err, commonerrors.ErrCacheMiss) {
-		p.metrics.WithLabelValues("miss").Inc()
+		p.metrics.RecordCacheMiss()
 		p.log.Debug("cache miss", "key", key)
 	} else {
-		p.metrics.WithLabelValues("error").Inc()
+		p.metrics.RecordCacheError()
 		p.log.Error("cache error", "key", key, "error", err)
 	}
 

@@ -22,11 +22,18 @@ func TestCachingWeatherProvider_CacheMissThenHit(t *testing.T) {
 	cacheMock := NewMockCache(t)
 	providerMock := NewMockWeatherProvider(t)
 
-	reg := prometheus.NewRegistry()
-	require.NoError(t, reg.Register(metrics.WeatherCacheRequests))
+	hitc := prometheus.NewCounter(prometheus.CounterOpts{Name: "test_hit", Help: ""})
+	missc := prometheus.NewCounter(prometheus.CounterOpts{Name: "test_miss", Help: ""})
+	errc := prometheus.NewCounter(prometheus.CounterOpts{Name: "test_err", Help: ""})
+	cacheMetrics := metrics.NewPrometheusCacheMetrics(
+		metrics.WithCacheHitsCounter(hitc),
+		metrics.WithCacheMissesCounter(missc),
+		metrics.WithCacheErrorsCounter(errc),
+	)
+
 	log := slog.New(noophandler.NewNoOpHandler())
 
-	cp := NewCachingWeatherProvider(cacheMock, providerMock, metrics.WeatherCacheRequests, log)
+	cp := NewCachingWeatherProvider(cacheMock, providerMock, cacheMetrics, log)
 
 	location := "Kyiv"
 	key := "weather:" + location
@@ -52,8 +59,8 @@ func TestCachingWeatherProvider_CacheMissThenHit(t *testing.T) {
 	require.NoError(t, err1)
 	assert.Equal(t, expectedWeather, result1)
 	delta := 0.01
-	require.InDelta(t, float64(1), testutil.ToFloat64(metrics.WeatherCacheRequests.WithLabelValues("miss")), delta)
-	require.InDelta(t, float64(0), testutil.ToFloat64(metrics.WeatherCacheRequests.WithLabelValues("hit")), delta)
+	require.InDelta(t, float64(1), testutil.ToFloat64(missc), delta)
+	require.InDelta(t, float64(0), testutil.ToFloat64(hitc), delta)
 
 	cacheMock.EXPECT().Get(mock.Anything, key).Return(*expectedWeather, nil).Once()
 
@@ -61,6 +68,6 @@ func TestCachingWeatherProvider_CacheMissThenHit(t *testing.T) {
 	result2, err2 := cp.GetCurrentWeather(t.Context(), location)
 	require.NoError(t, err2)
 	assert.Equal(t, expectedWeather, result2)
-	require.InDelta(t, float64(1), testutil.ToFloat64(metrics.WeatherCacheRequests.WithLabelValues("miss")), delta)
-	require.InDelta(t, float64(1), testutil.ToFloat64(metrics.WeatherCacheRequests.WithLabelValues("hit")), delta)
+	require.InDelta(t, float64(1), testutil.ToFloat64(missc), delta)
+	require.InDelta(t, float64(1), testutil.ToFloat64(hitc), delta)
 }
