@@ -43,7 +43,11 @@ jobs:
 
   test:
     name: Test
+    needs: detect-modules
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: ${{ fromJSON(needs.detect-modules.outputs.modules) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -53,17 +57,14 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Install dependencies
+      - name: Download dependencies
+        working-directory: ${{ matrix.module }}
         run: go mod download
 
-      - name: Run unit tests (weather-upd-subscription-srv)
-        run: go test -v ./weather-upd-subscription-srv/...
+      - name: Run unit tests
+        working-directory: ${{ matrix.module }}
+        run: go test -v ./...
 
-      - name: Run integration tests (weather-upd-subscription-srv)
-        run: go test -v --tags=integration ./weather-upd-subscription-srv/...
-
-      - name: Run unit tests (notification-srv)
-        run: go test -v ./notification-srv/...
-
-      - name: Run integration tests (notification-srv)
-        run: go test -v --tags=integration ./notification-srv/...
+      - name: Run integration tests
+        working-directory: ${{ matrix.module }}
+        run: go test -v --tags=integration ./...
