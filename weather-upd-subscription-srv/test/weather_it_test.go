@@ -151,10 +151,16 @@ func TestGetWeatherIT(t *testing.T) {
 	chainWeatherProvider := weatherprovider.NewChainWeatherProvider(env.Log, weatherapiProvider, weatherstackProvider)
 	weatherCache := cache.NewJSONCache[dto.WeatherWithLocationDTO](tCache.RedisCache, 5*time.Minute)
 
-	reg := prometheus.NewRegistry()
-	require.NoError(t, reg.Register(metrics.WeatherCacheRequests))
+	hitc := prometheus.NewCounter(prometheus.CounterOpts{Name: "test_hit", Help: ""})
+	missc := prometheus.NewCounter(prometheus.CounterOpts{Name: "test_miss", Help: ""})
+	errc := prometheus.NewCounter(prometheus.CounterOpts{Name: "test_err", Help: ""})
+	cacheMetrics := metrics.NewPrometheusCacheMetrics(
+		metrics.WithCacheHitsCounter(hitc),
+		metrics.WithCacheMissesCounter(missc),
+		metrics.WithCacheErrorsCounter(errc),
+	)
 
-	cachingWeatherProvider := weatherprovider.NewCachingWeatherProvider(weatherCache, chainWeatherProvider, metrics.WeatherCacheRequests, env.Log)
+	cachingWeatherProvider := weatherprovider.NewCachingWeatherProvider(weatherCache, chainWeatherProvider, cacheMetrics, env.Log)
 
 	validate := validator.New()
 	weatherService := weather.NewWeatherService(cachingWeatherProvider, env.Log)
@@ -182,14 +188,14 @@ func TestGetWeatherIT(t *testing.T) {
 	weatherHandler.GetCurrentWeather(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	assertWeatherResponse(t, rr.Body, expectedTemp, expectedHum, expectedDesc, delta)
-	assertWeatherMetrics(t, metrics.WeatherCacheRequests, 1, 0, 0, delta)
+	assertCacheMetrics(t, hitc, missc, errc, 0, 1, 0, delta)
 
 	// Second req
 	rr = httptest.NewRecorder()
 	weatherHandler.GetCurrentWeather(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	assertWeatherResponse(t, rr.Body, expectedTemp, expectedHum, expectedDesc, delta)
-	assertWeatherMetrics(t, metrics.WeatherCacheRequests, 1, 1, 0, delta)
+	assertCacheMetrics(t, hitc, missc, errc, 1, 1, 0, delta)
 }
 
 func TestFullCycleIT(t *testing.T) {
@@ -327,15 +333,19 @@ func assertWeatherResponse(
 	require.Equal(t, expectedDesc, actualWeatherDto.Description)
 }
 
-func assertWeatherMetrics(
+func assertCacheMetrics(
 	t *testing.T,
-	metrics *prometheus.CounterVec,
-	miss, hit, errCount int,
+	hitc prometheus.Counter,
+	missc prometheus.Counter,
+	errc prometheus.Counter,
+	hit int,
+	miss int,
+	errCount int,
 	delta float64,
 ) {
 	t.Helper()
 
-	require.InDelta(t, float64(miss), ptestutil.ToFloat64(metrics.WithLabelValues("miss")), delta)
-	require.InDelta(t, float64(hit), ptestutil.ToFloat64(metrics.WithLabelValues("hit")), delta)
-	require.InDelta(t, float64(errCount), ptestutil.ToFloat64(metrics.WithLabelValues("error")), delta)
+	require.InDelta(t, float64(hit), ptestutil.ToFloat64(hitc), delta)
+	require.InDelta(t, float64(miss), ptestutil.ToFloat64(missc), delta)
+	require.InDelta(t, float64(errCount), ptestutil.ToFloat64(errc), delta)
 }

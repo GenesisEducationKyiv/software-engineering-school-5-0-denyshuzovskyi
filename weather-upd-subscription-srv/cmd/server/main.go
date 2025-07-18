@@ -66,7 +66,8 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 		return err
 	}
 
-	metrics.Init()
+	cacheMetrics := metrics.NewPrometheusCacheMetrics()
+	cacheMetrics.Register()
 
 	client := &http.Client{}
 	weatherapiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, client, log)
@@ -80,7 +81,7 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	})
 	redisCache := cache.NewRedisCache(redisClient)
 	weatherCache := cache.NewJSONCache[dto.WeatherWithLocationDTO](redisCache, cfg.Redis.TTL)
-	cachingWeatherProvider := weatherprovider.NewCachingWeatherProvider(weatherCache, chainWeatherProvider, metrics.WeatherCacheRequests, log)
+	cachingWeatherProvider := weatherprovider.NewCachingWeatherProvider(weatherCache, chainWeatherProvider, cacheMetrics, log)
 
 	subscriberRepository := postgresql.NewSubscriberRepository()
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
