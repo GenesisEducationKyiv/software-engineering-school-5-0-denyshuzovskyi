@@ -4,7 +4,7 @@ grpc-server:
 email-service:
   domain:
   key:
-  sender:
+  sender: postmaster@sandboxfd255faff9e0446a99721a7eb078fbb4.mailgun.org
 email-templates:
   confirmation:
     subject: "Confirm subscription"

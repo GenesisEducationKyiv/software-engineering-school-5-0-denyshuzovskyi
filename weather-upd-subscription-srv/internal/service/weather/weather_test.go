@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWeatherService_GetCurrentWeatherForLocation_Twice(t *testing.T) {
+func TestWeatherService_GetCurrentWeatherForLocation(t *testing.T) {
 	ctx := t.Context()
 	location := "Kyiv"
 
