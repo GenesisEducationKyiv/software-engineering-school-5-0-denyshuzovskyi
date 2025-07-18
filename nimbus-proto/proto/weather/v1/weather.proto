@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package weather.v1;
+option go_package = "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/weather/v1";
+
+import "google/api/annotations.proto";
+
+message GetCurrentWeatherRequest {
+  string city = 1;
+}
+
+message GetCurrentWeatherResponse {
+  float temperature = 1;
+  float humidity = 2;
+  string description = 3;
+}
+
+service WeatherService {
+  rpc GetCurrentWeather (GetCurrentWeatherRequest) returns (GetCurrentWeatherResponse) {
+    option (google.api.http) = {
+      get: "/v1/weather"
+      additional_bindings {
+        get: "/v1/weather/{city}"
+      }
+    };
+  }
+}

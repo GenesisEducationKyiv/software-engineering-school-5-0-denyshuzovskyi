@@ -5,27 +5,49 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  GO_VERSION: '1.24.4'
+  GOLANGCI_LINT_VERSION: v2.1
+
+
 jobs:
-  golangci:
-    name: Lint
+  detect-modules:
     runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.set-modules.outputs.modules }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.24.3'
+          go-version: ${{ env.GO_VERSION }}
+      - id: set-modules
+        run: echo "modules=$(go list -m -json | jq -s '.' | jq -c '[.[].Dir]')" >> $GITHUB_OUTPUT
 
-      - name: Run golangci-lint
+  golangci-lint:
+    needs: detect-modules
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        modules: ${{ fromJSON(needs.detect-modules.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: golangci-lint ${{ matrix.modules }}
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          working-directory: ${{ matrix.modules }}
+
 
   test:
     name: Test
+    needs: detect-modules
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: ${{ fromJSON(needs.detect-modules.outputs.modules) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,13 +55,16 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.3'
+          go-version: ${{ env.GO_VERSION }}
 
-      - name: Install dependencies
+      - name: Download dependencies
+        working-directory: ${{ matrix.module }}
         run: go mod download
 
       - name: Run unit tests
+        working-directory: ${{ matrix.module }}
         run: go test -v ./...
 
       - name: Run integration tests
+        working-directory: ${{ matrix.module }}
         run: go test -v --tags=integration ./...
