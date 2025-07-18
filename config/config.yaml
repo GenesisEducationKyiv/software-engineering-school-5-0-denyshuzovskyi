@@ -13,6 +13,10 @@ email-service:
   domain: ""
   key: key
   sender: postmaster@sandboxfd255faff9e0446a99721a7eb078fbb4.mailgun.org
+redis:
+  url: localhost:6379
+  password:
+  ttl: 15m
 emails:
   confirmation-email:
     subject: "Confirm subscription"
