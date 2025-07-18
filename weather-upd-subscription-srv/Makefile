@@ -1,6 +1,6 @@
 LINT_CONFIG=./../.golangci.yaml
 
-.PHONY: tidy lint fmt test testit build-img
+.PHONY: tidy lint fmt test testit
 
 tidy:
 	go mod tidy

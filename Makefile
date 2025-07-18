@@ -1,6 +1,6 @@
 LINT_CONFIG=./../.golangci.yaml
 
-.PHONY: sync docker-build-subs
+.PHONY: sync docker-build-subs docker-build-notification
 
 sync:
 	go work sync
