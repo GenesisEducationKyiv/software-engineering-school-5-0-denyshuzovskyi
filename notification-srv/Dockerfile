@@ -18,6 +18,4 @@ WORKDIR /app
 
 COPY --from=builder /app/notification-srv .
 
-EXPOSE 8080
-
 CMD ["./notification-srv"]

@@ -18,6 +18,4 @@ WORKDIR /app
 
 COPY --from=builder /app/weather-upd-subscription-srv .
 
-EXPOSE 8080
-
 CMD ["./weather-upd-subscription-srv"]
