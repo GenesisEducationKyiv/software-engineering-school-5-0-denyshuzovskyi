@@ -8,9 +8,8 @@ import (
 	"net/http"
 	"os"
 
-	v1 "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/rabbitmq"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/cache"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/notificationservice"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/config"
@@ -19,6 +18,8 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/logger"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/metrics"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/publisher"
+	rabbit "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/rabbitmq"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/repository/postgresql"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/server"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/server/handler"
@@ -31,9 +32,8 @@ import (
 	"github.com/go-playground/validator/v10"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -87,20 +87,38 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
 
-	conn, err := grpc.NewClient(cfg.NotificationService.Url, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	rabbitConn, err := amqp.Dial(cfg.RabbitMQ.Url)
 	if err != nil {
 		return err
 	}
-	defer func(conn *grpc.ClientConn) {
-		if err := conn.Close(); err != nil {
-			log.Error("failed to close client", "error", err)
+	defer func(rabbitConn *amqp.Connection) {
+		err := rabbitConn.Close()
+		if err != nil {
+			log.Error("failed to close connection", "error", err)
 		}
-	}(conn)
-	notificationServiceClient := notificationservice.NewNotificationServiceClient(v1.NewNotificationServiceClient(conn))
+	}(rabbitConn)
+
+	ch, err := rabbitConn.Channel()
+	if err != nil {
+		return err
+	}
+	defer func(ch *amqp.Channel) {
+		err := ch.Close()
+		if err != nil {
+			log.Error("failed to close channel", "error", err)
+		}
+	}(ch)
+
+	err = rabbit.SetUpExchange(ch, cfg.RabbitMQ.Exchange)
+	if err != nil {
+		return err
+	}
+	notificationPublisher := rabbitmq.NewPublisher(rabbitConn, cfg.RabbitMQ.Exchange)
+	notificationCommandSender := publisher.NewNotificationCommandSender(notificationPublisher)
 
 	weatherService := weather.NewWeatherService(cachingWeatherProvider, log)
-	subscriptionService := subscription.NewSubscriptionService(db, cachingWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, notificationServiceClient, log)
-	notificationService := notification.NewNotificationService(notificationServiceClient)
+	subscriptionService := subscription.NewSubscriptionService(db, cachingWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, notificationCommandSender, log)
+	notificationService := notification.NewNotificationService(notificationCommandSender)
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
 
 	validate := validator.New()

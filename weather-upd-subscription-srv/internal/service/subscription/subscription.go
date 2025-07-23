@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"time"
 
-	v1 "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/notification/command"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/error"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/lib/sqlutil"
@@ -42,9 +42,9 @@ type TokenRepository interface {
 }
 
 type NotificationSender interface {
-	SendConfirmation(context.Context, *v1.SendConfirmationRequest) error
-	SendConfirmationSuccess(context.Context, *v1.SendConfirmationSuccessRequest) error
-	SendUnsubscribeSuccess(context.Context, *v1.SendUnsubscribeSuccessRequest) error
+	SendConfirmation(context.Context, command.SendConfirmation) error
+	SendConfirmationSuccess(context.Context, command.SendConfirmationSuccess) error
+	SendUnsubscribeSuccess(context.Context, command.SendUnsubscribeSuccess) error
 }
 
 type SubscriptionService struct {
@@ -141,16 +141,16 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.Subscrip
 			return errIn
 		}
 
-		confReq := &v1.SendConfirmationRequest{
-			NotificationWithToken: &v1.NotificationWithTokenRequest{
-				Notification: &v1.NotificationRequest{
+		sendConfirm := command.SendConfirmation{
+			NotificationWithToken: command.NotificationWithToken{
+				Notification: command.Notification{
 					To: subReq.Email,
 				},
 				Token: token.Token,
 			},
 		}
 
-		errIn = s.notificationSender.SendConfirmation(ctx, confReq)
+		errIn = s.notificationSender.SendConfirmation(ctx, sendConfirm)
 		if errIn != nil {
 			return errIn
 		}
@@ -213,16 +213,16 @@ func (s *SubscriptionService) Confirm(ctx context.Context, tokenStr string) erro
 			return errIn
 		}
 
-		confSuccessReq := &v1.SendConfirmationSuccessRequest{
-			NotificationWithToken: &v1.NotificationWithTokenRequest{
-				Notification: &v1.NotificationRequest{
+		sendConfirmSuccess := command.SendConfirmationSuccess{
+			NotificationWithToken: command.NotificationWithToken{
+				Notification: command.Notification{
 					To: subscriber.Email,
 				},
 				Token: unsubToken.Token,
 			},
 		}
 
-		errIn = s.notificationSender.SendConfirmationSuccess(ctx, confSuccessReq)
+		errIn = s.notificationSender.SendConfirmationSuccess(ctx, sendConfirmSuccess)
 		if errIn != nil {
 			return errIn
 		}
@@ -266,13 +266,13 @@ func (s *SubscriptionService) Unsubscribe(ctx context.Context, tokenStr string) 
 			return errIn
 		}
 
-		unsubReq := &v1.SendUnsubscribeSuccessRequest{
-			Notification: &v1.NotificationRequest{
+		sendUnsubSuccess := command.SendUnsubscribeSuccess{
+			Notification: command.Notification{
 				To: subscriber.Email,
 			},
 		}
 
-		errIn = s.notificationSender.SendUnsubscribeSuccess(ctx, unsubReq)
+		errIn = s.notificationSender.SendUnsubscribeSuccess(ctx, sendUnsubSuccess)
 		if errIn != nil {
 			return errIn
 		}

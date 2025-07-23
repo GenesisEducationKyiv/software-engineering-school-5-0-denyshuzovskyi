@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	v1 "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/notification/command"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/cache"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherstack"
@@ -257,25 +257,25 @@ func TestFullCycleIT(t *testing.T) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
-	var capturedSendConfirmRequest *v1.SendConfirmationRequest
+	var capturedSendConfirmation command.SendConfirmation
 	subsNotificationSenderMock.EXPECT().
-		SendConfirmation(mock.Anything, mock.AnythingOfType("*v1.SendConfirmationRequest")).
-		Run(func(ctx context.Context, req *v1.SendConfirmationRequest) {
-			capturedSendConfirmRequest = req
+		SendConfirmation(mock.Anything, mock.AnythingOfType("command.SendConfirmation")).
+		Run(func(ctx context.Context, cmd command.SendConfirmation) {
+			capturedSendConfirmation = cmd
 		}).
 		Return(nil).Once()
 
 	mux.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	lastToken := capturedSendConfirmRequest.GetNotificationWithToken().GetToken()
+	lastToken := capturedSendConfirmation.Token
 	require.NotEmpty(t, lastToken)
 
 	// Confirm
-	var capturedSendConfirmSuccessRequest *v1.SendConfirmationSuccessRequest
+	var capturedSendConfirmSuccess command.SendConfirmationSuccess
 	subsNotificationSenderMock.EXPECT().
-		SendConfirmationSuccess(mock.Anything, mock.AnythingOfType("*v1.SendConfirmationSuccessRequest")).
-		Run(func(ctx context.Context, req *v1.SendConfirmationSuccessRequest) {
-			capturedSendConfirmSuccessRequest = req
+		SendConfirmationSuccess(mock.Anything, mock.AnythingOfType("command.SendConfirmationSuccess")).
+		Run(func(ctx context.Context, cmd command.SendConfirmationSuccess) {
+			capturedSendConfirmSuccess = cmd
 		}).
 		Return(nil).Once()
 
@@ -283,29 +283,29 @@ func TestFullCycleIT(t *testing.T) {
 	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	lastToken = capturedSendConfirmSuccessRequest.GetNotificationWithToken().GetToken()
+	lastToken = capturedSendConfirmSuccess.Token
 	require.NotEmpty(t, lastToken)
 
 	// Imitate notification job trigger
-	var capturedSendWeatherUpdateRequest *v1.SendWeatherUpdateRequest
+	var capturedSendWeatherUpdate command.SendWeatherUpdate
 	notificationSenderMock.EXPECT().
-		SendWeatherUpdate(mock.Anything, mock.AnythingOfType("*v1.SendWeatherUpdateRequest")).
-		Run(func(ctx context.Context, req *v1.SendWeatherUpdateRequest) {
-			capturedSendWeatherUpdateRequest = req
+		SendWeatherUpdate(mock.Anything, mock.AnythingOfType("command.SendWeatherUpdate")).
+		Run(func(ctx context.Context, cmd command.SendWeatherUpdate) {
+			capturedSendWeatherUpdate = cmd
 		}).
 		Return(nil).
 		Once()
 	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Daily)
-	require.Equal(t, subscriberEmail, capturedSendWeatherUpdateRequest.GetWeatherUpdateNotification().GetNotificationWithToken().GetNotification().GetTo())
-	lastToken = capturedSendWeatherUpdateRequest.GetWeatherUpdateNotification().GetNotificationWithToken().GetToken()
+	require.Equal(t, subscriberEmail, capturedSendWeatherUpdate.To)
+	lastToken = capturedSendWeatherUpdate.Token
 	require.NotEmpty(t, lastToken)
 
 	// Unsubscribe
-	var sendUnsubSuccessReq *v1.SendUnsubscribeSuccessRequest
+	var sendUnsubSuccess command.SendUnsubscribeSuccess
 	subsNotificationSenderMock.EXPECT().
-		SendUnsubscribeSuccess(mock.Anything, mock.AnythingOfType("*v1.SendUnsubscribeSuccessRequest")).
-		Run(func(ctx context.Context, req *v1.SendUnsubscribeSuccessRequest) {
-			sendUnsubSuccessReq = req
+		SendUnsubscribeSuccess(mock.Anything, mock.AnythingOfType("command.SendUnsubscribeSuccess")).
+		Run(func(ctx context.Context, cmd command.SendUnsubscribeSuccess) {
+			sendUnsubSuccess = cmd
 		}).
 		Return(nil).
 		Once()
@@ -313,7 +313,7 @@ func TestFullCycleIT(t *testing.T) {
 	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	require.Equal(t, subscriberEmail, sendUnsubSuccessReq.GetNotification().GetTo())
+	require.Equal(t, subscriberEmail, sendUnsubSuccess.To)
 }
 
 func assertWeatherResponse(

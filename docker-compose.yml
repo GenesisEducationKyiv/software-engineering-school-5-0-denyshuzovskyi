@@ -56,6 +56,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "8080:8080"
     networks:
@@ -68,20 +70,23 @@ services:
       WEATHER_PROVIDER_KEY: ${WEATHER_PROVIDER_KEY}
       REDIS_URL: ${REDIS_URL}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
 
   notification-srv:
     image: notification-srv:latest
     container_name: notification-srv
-    ports:
-      - "50051:50051"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     networks:
       - nimbus-notify-network
     environment:
-      GRPC_SERVER_HOST: ${GRPC_SERVER_HOST}
-      GRPC_SERVER_PORT: ${GRPC_SERVER_PORT}
       EMAIL_SERVICE_DOMAIN: ${EMAIL_SERVICE_DOMAIN}
       EMAIL_SERVICE_KEY: ${EMAIL_SERVICE_KEY}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
 
 
 networks:

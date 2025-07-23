@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/notification/command"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
 )
 
 type NotificationSender interface {
-	SendWeatherUpdate(context.Context, *v1.SendWeatherUpdateRequest) error
+	SendWeatherUpdate(context.Context, command.SendWeatherUpdate) error
 }
 
 type NotificationService struct {
@@ -23,24 +23,22 @@ func NewNotificationService(notificationSender NotificationSender) *Notification
 }
 
 func (s *NotificationService) SendWeatherUpdateNotification(ctx context.Context, subscriptionData dto.SubscriptionData, weather dto.WeatherDTO) error {
-	weatherUpdReq := &v1.SendWeatherUpdateRequest{
-		WeatherUpdateNotification: &v1.WeatherUpdateNotificationRequest{
-			NotificationWithToken: &v1.NotificationWithTokenRequest{
-				Notification: &v1.NotificationRequest{
-					To: subscriptionData.Email,
-				},
-				Token: subscriptionData.Token,
+	sendWeatherUpd := command.SendWeatherUpdate{
+		NotificationWithToken: command.NotificationWithToken{
+			Notification: command.Notification{
+				To: subscriptionData.Email,
 			},
-			Weather: &v1.WeatherRequest{
-				Location:    subscriptionData.Location,
-				Temperature: weather.Temperature,
-				Humidity:    weather.Humidity,
-				Description: weather.Description,
-			},
+			Token: subscriptionData.Token,
+		},
+		Weather: command.Weather{
+			Location:    subscriptionData.Location,
+			Temperature: weather.Temperature,
+			Humidity:    weather.Humidity,
+			Description: weather.Description,
 		},
 	}
 
-	if err := s.notificationSender.SendWeatherUpdate(ctx, weatherUpdReq); err != nil {
+	if err := s.notificationSender.SendWeatherUpdate(ctx, sendWeatherUpd); err != nil {
 		return fmt.Errorf("send weather update notification: %w", err)
 	}
 

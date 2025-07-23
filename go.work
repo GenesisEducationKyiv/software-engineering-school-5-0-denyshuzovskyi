@@ -1,6 +1,7 @@
-go 1.24.4
+go 1.24.5
 
 use (
+	./nimbus-lib
 	./nimbus-proto
 	./notification-srv
 	./weather-upd-subscription-srv
