@@ -1,18 +1,11 @@
-LINT_CONFIG=./.golangci.yaml
+.PHONY: sync
+sync:
+	go work sync
 
-.PHONY: tidy lint fmt test testit
+.PHONY: docker-build-subs
+docker-build-subs:
+	docker build -f weather-upd-subscription-srv/Dockerfile -t weather-upd-subscription-srv .
 
-tidy:
-	go mod tidy
-
-lint:
-	golangci-lint run --config $(LINT_CONFIG)
-
-fmt:
-	golangci-lint fmt --config $(LINT_CONFIG)
-
-test:
-	go test ./...
-
-testit:
-	go test --tags=integration ./...
+.PHONY: docker-build-notification
+docker-build-notification:
+	docker build -f notification-srv/Dockerfile -t notification-srv .
