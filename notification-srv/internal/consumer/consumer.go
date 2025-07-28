@@ -7,17 +7,17 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/command/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/message"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/notification/command"
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/notification-srv/internal/error"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type NotificationSendingService interface {
-	SendConfirmation(context.Context, command.SendConfirmation) error
-	SendConfirmationSuccess(context.Context, command.SendConfirmationSuccess) error
-	SendWeatherUpdate(context.Context, command.SendWeatherUpdate) error
-	SendUnsubscribeSuccess(context.Context, command.SendUnsubscribeSuccess) error
+	SendConfirmation(context.Context, notification.SendConfirmation) error
+	SendConfirmationSuccess(context.Context, notification.SendConfirmationSuccess) error
+	SendWeatherUpdate(context.Context, notification.SendWeatherUpdate) error
+	SendUnsubscribeSuccess(context.Context, notification.SendUnsubscribeSuccess) error
 }
 
 type NotificationCommandConsumer struct {
@@ -71,29 +71,29 @@ func (c *NotificationCommandConsumer) processCommand(ctx context.Context, msg am
 
 func (c *NotificationCommandConsumer) dispatch(ctx context.Context, envelope message.Envelope) error {
 	switch envelope.Type {
-	case command.Confirmation:
-		var cmd command.SendConfirmation
+	case notification.Confirmation:
+		var cmd notification.SendConfirmation
 		if err := json.Unmarshal(envelope.Payload, &cmd); err != nil {
 			return fmt.Errorf("failed to unmarshal %s: %w", envelope.Type, err)
 		}
 		return c.notificationSendingService.SendConfirmation(ctx, cmd)
 
-	case command.ConfirmationSuccess:
-		var cmd command.SendConfirmationSuccess
+	case notification.ConfirmationSuccess:
+		var cmd notification.SendConfirmationSuccess
 		if err := json.Unmarshal(envelope.Payload, &cmd); err != nil {
 			return fmt.Errorf("failed to unmarshal %s: %w", envelope.Type, err)
 		}
 		return c.notificationSendingService.SendConfirmationSuccess(ctx, cmd)
 
-	case command.WeatherUpdate:
-		var cmd command.SendWeatherUpdate
+	case notification.WeatherUpdate:
+		var cmd notification.SendWeatherUpdate
 		if err := json.Unmarshal(envelope.Payload, &cmd); err != nil {
 			return fmt.Errorf("failed to unmarshal %s: %w", envelope.Type, err)
 		}
 		return c.notificationSendingService.SendWeatherUpdate(ctx, cmd)
 
-	case command.UnsubscribeSuccess:
-		var cmd command.SendUnsubscribeSuccess
+	case notification.UnsubscribeSuccess:
+		var cmd notification.SendUnsubscribeSuccess
 		if err := json.Unmarshal(envelope.Payload, &cmd); err != nil {
 			return fmt.Errorf("failed to unmarshal %s: %w", envelope.Type, err)
 		}

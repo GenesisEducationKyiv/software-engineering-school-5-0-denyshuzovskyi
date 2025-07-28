@@ -2,11 +2,8 @@ package publisher
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/message"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/notification/command"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/command/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/rabbitmq"
 )
 
@@ -22,16 +19,16 @@ func NewNotificationCommandSender(cmdPublisher CommandPublisher) *NotificationCo
 	return &NotificationCommandSender{cmdPublisher}
 }
 
-func (n *NotificationCommandSender) SendConfirmation(ctx context.Context, sendConf command.SendConfirmation) error {
-	body, err := preparePayloadForCommand(&sendConf)
+func (n *NotificationCommandSender) SendConfirmation(ctx context.Context, sendConf notification.SendConfirmation) error {
+	body, err := notification.MarshalEnvelopeFromCommand(&sendConf)
 	if err != nil {
 		return err
 	}
 	return n.cmdPublisher.Publish(ctx, rabbitmq.SendConfirmationKey, body)
 }
 
-func (n *NotificationCommandSender) SendConfirmationSuccess(ctx context.Context, sendConfSuccess command.SendConfirmationSuccess) error {
-	body, err := preparePayloadForCommand(&sendConfSuccess)
+func (n *NotificationCommandSender) SendConfirmationSuccess(ctx context.Context, sendConfSuccess notification.SendConfirmationSuccess) error {
+	body, err := notification.MarshalEnvelopeFromCommand(&sendConfSuccess)
 	if err != nil {
 		return err
 	}
@@ -39,8 +36,8 @@ func (n *NotificationCommandSender) SendConfirmationSuccess(ctx context.Context,
 	return n.cmdPublisher.Publish(ctx, rabbitmq.SendUnsubscribeSuccessKey, body)
 }
 
-func (n *NotificationCommandSender) SendUnsubscribeSuccess(ctx context.Context, sendUnsubSuccess command.SendUnsubscribeSuccess) error {
-	body, err := preparePayloadForCommand(&sendUnsubSuccess)
+func (n *NotificationCommandSender) SendUnsubscribeSuccess(ctx context.Context, sendUnsubSuccess notification.SendUnsubscribeSuccess) error {
+	body, err := notification.MarshalEnvelopeFromCommand(&sendUnsubSuccess)
 	if err != nil {
 		return err
 	}
@@ -48,32 +45,11 @@ func (n *NotificationCommandSender) SendUnsubscribeSuccess(ctx context.Context, 
 	return n.cmdPublisher.Publish(ctx, rabbitmq.SendUnsubscribeSuccessKey, body)
 }
 
-func (n *NotificationCommandSender) SendWeatherUpdate(ctx context.Context, sendWeatherUpd command.SendWeatherUpdate) error {
-	body, err := preparePayloadForCommand(&sendWeatherUpd)
+func (n *NotificationCommandSender) SendWeatherUpdate(ctx context.Context, sendWeatherUpd notification.SendWeatherUpdate) error {
+	body, err := notification.MarshalEnvelopeFromCommand(&sendWeatherUpd)
 	if err != nil {
 		return err
 	}
 
 	return n.cmdPublisher.Publish(ctx, rabbitmq.SendWeatherUpdateKey, body)
-}
-
-func preparePayloadForCommand(cmd command.NotificationCommand) ([]byte, error) {
-	var empty []byte
-
-	payload, err := json.Marshal(cmd)
-	if err != nil {
-		return empty, fmt.Errorf("marshal command: %w", err)
-	}
-
-	env := message.Envelope{
-		Type:    cmd.Type(),
-		Payload: payload,
-	}
-
-	body, err := json.Marshal(env)
-	if err != nil {
-		return empty, fmt.Errorf("marshal envelope: %w", err)
-	}
-
-	return body, nil
 }

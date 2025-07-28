@@ -1,4 +1,4 @@
-package command
+package notification
 
 const (
 	Confirmation        = "confirmation"

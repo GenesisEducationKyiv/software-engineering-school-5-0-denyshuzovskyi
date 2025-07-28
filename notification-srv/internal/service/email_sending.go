@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/notification/command"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/command/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/notification-srv/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/notification-srv/internal/dto"
 )
@@ -28,7 +28,7 @@ func NewEmailSendingService(emailTemplates config.EmailTemplates, sender EmailSe
 	}
 }
 
-func (s *EmailSendingService) SendConfirmation(ctx context.Context, sendConfirm command.SendConfirmation) error {
+func (s *EmailSendingService) SendConfirmation(ctx context.Context, sendConfirm notification.SendConfirmation) error {
 	template := s.emailTemplates.Confirmation
 
 	email := dto.SimpleEmail{
@@ -49,7 +49,7 @@ func (s *EmailSendingService) SendConfirmation(ctx context.Context, sendConfirm 
 	return nil
 }
 
-func (s *EmailSendingService) SendConfirmationSuccess(ctx context.Context, sendConfirmSuccess command.SendConfirmationSuccess) error {
+func (s *EmailSendingService) SendConfirmationSuccess(ctx context.Context, sendConfirmSuccess notification.SendConfirmationSuccess) error {
 	template := s.emailTemplates.ConfirmationSuccess
 
 	email := dto.SimpleEmail{
@@ -70,7 +70,7 @@ func (s *EmailSendingService) SendConfirmationSuccess(ctx context.Context, sendC
 	return nil
 }
 
-func (s *EmailSendingService) SendWeatherUpdate(ctx context.Context, sendWeatherUpd command.SendWeatherUpdate) error {
+func (s *EmailSendingService) SendWeatherUpdate(ctx context.Context, sendWeatherUpd notification.SendWeatherUpdate) error {
 	template := s.emailTemplates.WeatherUpdate
 
 	email := dto.SimpleEmail{
@@ -95,7 +95,7 @@ func (s *EmailSendingService) SendWeatherUpdate(ctx context.Context, sendWeather
 	return nil
 }
 
-func (s *EmailSendingService) SendUnsubscribeSuccess(ctx context.Context, unsubSuccess command.SendUnsubscribeSuccess) error {
+func (s *EmailSendingService) SendUnsubscribeSuccess(ctx context.Context, unsubSuccess notification.SendUnsubscribeSuccess) error {
 	template := s.emailTemplates.UnsubscribeSuccess
 
 	email := dto.SimpleEmail{

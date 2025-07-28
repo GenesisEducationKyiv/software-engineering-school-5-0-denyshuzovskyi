@@ -7,7 +7,7 @@ package notification
 import (
 	"context"
 
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/notification/command"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/command/notification"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -39,7 +39,7 @@ func (_m *MockNotificationSender) EXPECT() *MockNotificationSender_Expecter {
 }
 
 // SendWeatherUpdate provides a mock function for the type MockNotificationSender
-func (_mock *MockNotificationSender) SendWeatherUpdate(context1 context.Context, sendWeatherUpdate command.SendWeatherUpdate) error {
+func (_mock *MockNotificationSender) SendWeatherUpdate(context1 context.Context, sendWeatherUpdate notification.SendWeatherUpdate) error {
 	ret := _mock.Called(context1, sendWeatherUpdate)
 
 	if len(ret) == 0 {
@@ -47,7 +47,7 @@ func (_mock *MockNotificationSender) SendWeatherUpdate(context1 context.Context,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, command.SendWeatherUpdate) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, notification.SendWeatherUpdate) error); ok {
 		r0 = returnFunc(context1, sendWeatherUpdate)
 	} else {
 		r0 = ret.Error(0)
@@ -62,20 +62,20 @@ type MockNotificationSender_SendWeatherUpdate_Call struct {
 
 // SendWeatherUpdate is a helper method to define mock.On call
 //   - context1 context.Context
-//   - sendWeatherUpdate command.SendWeatherUpdate
+//   - sendWeatherUpdate notification.SendWeatherUpdate
 func (_e *MockNotificationSender_Expecter) SendWeatherUpdate(context1 interface{}, sendWeatherUpdate interface{}) *MockNotificationSender_SendWeatherUpdate_Call {
 	return &MockNotificationSender_SendWeatherUpdate_Call{Call: _e.mock.On("SendWeatherUpdate", context1, sendWeatherUpdate)}
 }
 
-func (_c *MockNotificationSender_SendWeatherUpdate_Call) Run(run func(context1 context.Context, sendWeatherUpdate command.SendWeatherUpdate)) *MockNotificationSender_SendWeatherUpdate_Call {
+func (_c *MockNotificationSender_SendWeatherUpdate_Call) Run(run func(context1 context.Context, sendWeatherUpdate notification.SendWeatherUpdate)) *MockNotificationSender_SendWeatherUpdate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 command.SendWeatherUpdate
+		var arg1 notification.SendWeatherUpdate
 		if args[1] != nil {
-			arg1 = args[1].(command.SendWeatherUpdate)
+			arg1 = args[1].(notification.SendWeatherUpdate)
 		}
 		run(
 			arg0,
@@ -90,7 +90,7 @@ func (_c *MockNotificationSender_SendWeatherUpdate_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockNotificationSender_SendWeatherUpdate_Call) RunAndReturn(run func(context1 context.Context, sendWeatherUpdate command.SendWeatherUpdate) error) *MockNotificationSender_SendWeatherUpdate_Call {
+func (_c *MockNotificationSender_SendWeatherUpdate_Call) RunAndReturn(run func(context1 context.Context, sendWeatherUpdate notification.SendWeatherUpdate) error) *MockNotificationSender_SendWeatherUpdate_Call {
 	_c.Call.Return(run)
 	return _c
 }

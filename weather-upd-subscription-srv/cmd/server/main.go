@@ -113,7 +113,7 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	if err != nil {
 		return err
 	}
-	notificationPublisher := rabbitmq.NewPublisher(rabbitConn, cfg.RabbitMQ.Exchange)
+	notificationPublisher := rabbitmq.NewPublisher(ch, cfg.RabbitMQ.Exchange)
 	notificationCommandSender := publisher.NewNotificationCommandSender(notificationPublisher)
 
 	weatherService := weather.NewWeatherService(cachingWeatherProvider, log)

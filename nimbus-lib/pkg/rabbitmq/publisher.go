@@ -2,7 +2,6 @@ package rabbitmq
 
 import (
 	"context"
-	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -12,12 +11,7 @@ type Publisher struct {
 	exchange string
 }
 
-func NewPublisher(conn *amqp.Connection, exchange string) *Publisher {
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatalf("Failed to open a channel: %v", err)
-	}
-
+func NewPublisher(ch *amqp.Channel, exchange string) *Publisher {
 	return &Publisher{
 		channel:  ch,
 		exchange: exchange,

@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/notification/command"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/command/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
 )
 
 type NotificationSender interface {
-	SendWeatherUpdate(context.Context, command.SendWeatherUpdate) error
+	SendWeatherUpdate(context.Context, notification.SendWeatherUpdate) error
 }
 
 type NotificationService struct {
@@ -23,14 +23,14 @@ func NewNotificationService(notificationSender NotificationSender) *Notification
 }
 
 func (s *NotificationService) SendWeatherUpdateNotification(ctx context.Context, subscriptionData dto.SubscriptionData, weather dto.WeatherDTO) error {
-	sendWeatherUpd := command.SendWeatherUpdate{
-		NotificationWithToken: command.NotificationWithToken{
-			Notification: command.Notification{
+	sendWeatherUpd := notification.SendWeatherUpdate{
+		NotificationWithToken: notification.NotificationWithToken{
+			Notification: notification.Notification{
 				To: subscriptionData.Email,
 			},
 			Token: subscriptionData.Token,
 		},
-		Weather: command.Weather{
+		Weather: notification.Weather{
 			Location:    subscriptionData.Location,
 			Temperature: weather.Temperature,
 			Humidity:    weather.Humidity,

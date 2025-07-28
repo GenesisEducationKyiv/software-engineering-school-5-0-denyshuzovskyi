@@ -17,15 +17,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/notification/command"
+	libnotification "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/command/notification"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/util/httputil"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/util/logger/noophandler"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/util/testutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/cache"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/database"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/lib/httputil"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/lib/logger/noophandler"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/lib/testutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/metrics"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/model"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/repository/postgresql"
@@ -257,10 +257,10 @@ func TestFullCycleIT(t *testing.T) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
-	var capturedSendConfirmation command.SendConfirmation
+	var capturedSendConfirmation libnotification.SendConfirmation
 	subsNotificationSenderMock.EXPECT().
-		SendConfirmation(mock.Anything, mock.AnythingOfType("command.SendConfirmation")).
-		Run(func(ctx context.Context, cmd command.SendConfirmation) {
+		SendConfirmation(mock.Anything, mock.AnythingOfType("notification.SendConfirmation")).
+		Run(func(ctx context.Context, cmd libnotification.SendConfirmation) {
 			capturedSendConfirmation = cmd
 		}).
 		Return(nil).Once()
@@ -271,10 +271,10 @@ func TestFullCycleIT(t *testing.T) {
 	require.NotEmpty(t, lastToken)
 
 	// Confirm
-	var capturedSendConfirmSuccess command.SendConfirmationSuccess
+	var capturedSendConfirmSuccess libnotification.SendConfirmationSuccess
 	subsNotificationSenderMock.EXPECT().
-		SendConfirmationSuccess(mock.Anything, mock.AnythingOfType("command.SendConfirmationSuccess")).
-		Run(func(ctx context.Context, cmd command.SendConfirmationSuccess) {
+		SendConfirmationSuccess(mock.Anything, mock.AnythingOfType("notification.SendConfirmationSuccess")).
+		Run(func(ctx context.Context, cmd libnotification.SendConfirmationSuccess) {
 			capturedSendConfirmSuccess = cmd
 		}).
 		Return(nil).Once()
@@ -287,10 +287,10 @@ func TestFullCycleIT(t *testing.T) {
 	require.NotEmpty(t, lastToken)
 
 	// Imitate notification job trigger
-	var capturedSendWeatherUpdate command.SendWeatherUpdate
+	var capturedSendWeatherUpdate libnotification.SendWeatherUpdate
 	notificationSenderMock.EXPECT().
-		SendWeatherUpdate(mock.Anything, mock.AnythingOfType("command.SendWeatherUpdate")).
-		Run(func(ctx context.Context, cmd command.SendWeatherUpdate) {
+		SendWeatherUpdate(mock.Anything, mock.AnythingOfType("notification.SendWeatherUpdate")).
+		Run(func(ctx context.Context, cmd libnotification.SendWeatherUpdate) {
 			capturedSendWeatherUpdate = cmd
 		}).
 		Return(nil).
@@ -301,10 +301,10 @@ func TestFullCycleIT(t *testing.T) {
 	require.NotEmpty(t, lastToken)
 
 	// Unsubscribe
-	var sendUnsubSuccess command.SendUnsubscribeSuccess
+	var sendUnsubSuccess libnotification.SendUnsubscribeSuccess
 	subsNotificationSenderMock.EXPECT().
-		SendUnsubscribeSuccess(mock.Anything, mock.AnythingOfType("command.SendUnsubscribeSuccess")).
-		Run(func(ctx context.Context, cmd command.SendUnsubscribeSuccess) {
+		SendUnsubscribeSuccess(mock.Anything, mock.AnythingOfType("notification.SendUnsubscribeSuccess")).
+		Run(func(ctx context.Context, cmd libnotification.SendUnsubscribeSuccess) {
 			sendUnsubSuccess = cmd
 		}).
 		Return(nil).
