@@ -81,7 +81,6 @@ func SetUpRabbitMQ(t *testing.T) *amqp.Channel {
 
 		// closing channel before connection might freeze the cleanup
 		require.NoError(t, conn.Close()) // also closes channel
-		require.NoError(t, ch.Close())
 		require.NoError(t, rabbitmqContainer.Terminate(ctx))
 
 		t.Log("finished cleanup")

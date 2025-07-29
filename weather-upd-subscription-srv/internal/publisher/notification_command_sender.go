@@ -33,7 +33,7 @@ func (n *NotificationCommandSender) SendConfirmationSuccess(ctx context.Context,
 		return err
 	}
 
-	return n.cmdPublisher.Publish(ctx, rabbitmq.SendUnsubscribeSuccessKey, body)
+	return n.cmdPublisher.Publish(ctx, rabbitmq.SendConfirmationSuccessKey, body)
 }
 
 func (n *NotificationCommandSender) SendUnsubscribeSuccess(ctx context.Context, sendUnsubSuccess notification.SendUnsubscribeSuccess) error {
