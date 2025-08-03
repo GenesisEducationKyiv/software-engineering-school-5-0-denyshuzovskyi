@@ -3,10 +3,10 @@ package notification
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
+	"google.golang.org/grpc"
 )
 
 type NotificationSender interface {

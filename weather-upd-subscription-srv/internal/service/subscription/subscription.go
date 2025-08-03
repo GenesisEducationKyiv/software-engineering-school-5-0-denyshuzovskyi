@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc"
 	"log/slog"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/lib/sqlutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/model"
 	"github.com/google/uuid"
+	"google.golang.org/grpc"
 )
 
 type WeatherProvider interface {

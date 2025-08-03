@@ -7,7 +7,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"google.golang.org/grpc"
 	"io"
 	"log/slog"
 	"net/http"
@@ -49,6 +48,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"google.golang.org/grpc"
 )
 
 type TestEnv struct {
