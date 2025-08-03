@@ -12,6 +12,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/lib/sqlutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/model"
 	mock "github.com/stretchr/testify/mock"
+	"google.golang.org/grpc"
 )
 
 // NewMockWeatherProvider creates a new instance of MockWeatherProvider. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -1092,20 +1093,37 @@ func (_m *MockNotificationSender) EXPECT() *MockNotificationSender_Expecter {
 }
 
 // SendConfirmation provides a mock function for the type MockNotificationSender
-func (_mock *MockNotificationSender) SendConfirmation(context1 context.Context, sendConfirmationRequest *v1.SendConfirmationRequest) error {
-	ret := _mock.Called(context1, sendConfirmationRequest)
+func (_mock *MockNotificationSender) SendConfirmation(context1 context.Context, sendConfirmationRequest *v1.SendConfirmationRequest, callOptions ...grpc.CallOption) (*v1.SendConfirmationResponse, error) {
+	var tmpRet mock.Arguments
+	if len(callOptions) > 0 {
+		tmpRet = _mock.Called(context1, sendConfirmationRequest, callOptions)
+	} else {
+		tmpRet = _mock.Called(context1, sendConfirmationRequest)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SendConfirmation")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendConfirmationRequest) error); ok {
-		r0 = returnFunc(context1, sendConfirmationRequest)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *v1.SendConfirmationResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendConfirmationRequest, ...grpc.CallOption) (*v1.SendConfirmationResponse, error)); ok {
+		return returnFunc(context1, sendConfirmationRequest, callOptions...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendConfirmationRequest, ...grpc.CallOption) *v1.SendConfirmationResponse); ok {
+		r0 = returnFunc(context1, sendConfirmationRequest, callOptions...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1.SendConfirmationResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1.SendConfirmationRequest, ...grpc.CallOption) error); ok {
+		r1 = returnFunc(context1, sendConfirmationRequest, callOptions...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockNotificationSender_SendConfirmation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SendConfirmation'
@@ -1116,11 +1134,13 @@ type MockNotificationSender_SendConfirmation_Call struct {
 // SendConfirmation is a helper method to define mock.On call
 //   - context1 context.Context
 //   - sendConfirmationRequest *v1.SendConfirmationRequest
-func (_e *MockNotificationSender_Expecter) SendConfirmation(context1 interface{}, sendConfirmationRequest interface{}) *MockNotificationSender_SendConfirmation_Call {
-	return &MockNotificationSender_SendConfirmation_Call{Call: _e.mock.On("SendConfirmation", context1, sendConfirmationRequest)}
+//   - callOptions ...grpc.CallOption
+func (_e *MockNotificationSender_Expecter) SendConfirmation(context1 interface{}, sendConfirmationRequest interface{}, callOptions ...interface{}) *MockNotificationSender_SendConfirmation_Call {
+	return &MockNotificationSender_SendConfirmation_Call{Call: _e.mock.On("SendConfirmation",
+		append([]interface{}{context1, sendConfirmationRequest}, callOptions...)...)}
 }
 
-func (_c *MockNotificationSender_SendConfirmation_Call) Run(run func(context1 context.Context, sendConfirmationRequest *v1.SendConfirmationRequest)) *MockNotificationSender_SendConfirmation_Call {
+func (_c *MockNotificationSender_SendConfirmation_Call) Run(run func(context1 context.Context, sendConfirmationRequest *v1.SendConfirmationRequest, callOptions ...grpc.CallOption)) *MockNotificationSender_SendConfirmation_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1130,39 +1150,63 @@ func (_c *MockNotificationSender_SendConfirmation_Call) Run(run func(context1 co
 		if args[1] != nil {
 			arg1 = args[1].(*v1.SendConfirmationRequest)
 		}
+		var arg2 []grpc.CallOption
+		var variadicArgs []grpc.CallOption
+		if len(args) > 2 {
+			variadicArgs = args[2].([]grpc.CallOption)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockNotificationSender_SendConfirmation_Call) Return(err error) *MockNotificationSender_SendConfirmation_Call {
-	_c.Call.Return(err)
+func (_c *MockNotificationSender_SendConfirmation_Call) Return(sendConfirmationResponse *v1.SendConfirmationResponse, err error) *MockNotificationSender_SendConfirmation_Call {
+	_c.Call.Return(sendConfirmationResponse, err)
 	return _c
 }
 
-func (_c *MockNotificationSender_SendConfirmation_Call) RunAndReturn(run func(context1 context.Context, sendConfirmationRequest *v1.SendConfirmationRequest) error) *MockNotificationSender_SendConfirmation_Call {
+func (_c *MockNotificationSender_SendConfirmation_Call) RunAndReturn(run func(context1 context.Context, sendConfirmationRequest *v1.SendConfirmationRequest, callOptions ...grpc.CallOption) (*v1.SendConfirmationResponse, error)) *MockNotificationSender_SendConfirmation_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SendConfirmationSuccess provides a mock function for the type MockNotificationSender
-func (_mock *MockNotificationSender) SendConfirmationSuccess(context1 context.Context, sendConfirmationSuccessRequest *v1.SendConfirmationSuccessRequest) error {
-	ret := _mock.Called(context1, sendConfirmationSuccessRequest)
+func (_mock *MockNotificationSender) SendConfirmationSuccess(context1 context.Context, sendConfirmationSuccessRequest *v1.SendConfirmationSuccessRequest, callOptions ...grpc.CallOption) (*v1.SendConfirmationSuccessResponse, error) {
+	var tmpRet mock.Arguments
+	if len(callOptions) > 0 {
+		tmpRet = _mock.Called(context1, sendConfirmationSuccessRequest, callOptions)
+	} else {
+		tmpRet = _mock.Called(context1, sendConfirmationSuccessRequest)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SendConfirmationSuccess")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendConfirmationSuccessRequest) error); ok {
-		r0 = returnFunc(context1, sendConfirmationSuccessRequest)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *v1.SendConfirmationSuccessResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendConfirmationSuccessRequest, ...grpc.CallOption) (*v1.SendConfirmationSuccessResponse, error)); ok {
+		return returnFunc(context1, sendConfirmationSuccessRequest, callOptions...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendConfirmationSuccessRequest, ...grpc.CallOption) *v1.SendConfirmationSuccessResponse); ok {
+		r0 = returnFunc(context1, sendConfirmationSuccessRequest, callOptions...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1.SendConfirmationSuccessResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1.SendConfirmationSuccessRequest, ...grpc.CallOption) error); ok {
+		r1 = returnFunc(context1, sendConfirmationSuccessRequest, callOptions...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockNotificationSender_SendConfirmationSuccess_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SendConfirmationSuccess'
@@ -1173,11 +1217,13 @@ type MockNotificationSender_SendConfirmationSuccess_Call struct {
 // SendConfirmationSuccess is a helper method to define mock.On call
 //   - context1 context.Context
 //   - sendConfirmationSuccessRequest *v1.SendConfirmationSuccessRequest
-func (_e *MockNotificationSender_Expecter) SendConfirmationSuccess(context1 interface{}, sendConfirmationSuccessRequest interface{}) *MockNotificationSender_SendConfirmationSuccess_Call {
-	return &MockNotificationSender_SendConfirmationSuccess_Call{Call: _e.mock.On("SendConfirmationSuccess", context1, sendConfirmationSuccessRequest)}
+//   - callOptions ...grpc.CallOption
+func (_e *MockNotificationSender_Expecter) SendConfirmationSuccess(context1 interface{}, sendConfirmationSuccessRequest interface{}, callOptions ...interface{}) *MockNotificationSender_SendConfirmationSuccess_Call {
+	return &MockNotificationSender_SendConfirmationSuccess_Call{Call: _e.mock.On("SendConfirmationSuccess",
+		append([]interface{}{context1, sendConfirmationSuccessRequest}, callOptions...)...)}
 }
 
-func (_c *MockNotificationSender_SendConfirmationSuccess_Call) Run(run func(context1 context.Context, sendConfirmationSuccessRequest *v1.SendConfirmationSuccessRequest)) *MockNotificationSender_SendConfirmationSuccess_Call {
+func (_c *MockNotificationSender_SendConfirmationSuccess_Call) Run(run func(context1 context.Context, sendConfirmationSuccessRequest *v1.SendConfirmationSuccessRequest, callOptions ...grpc.CallOption)) *MockNotificationSender_SendConfirmationSuccess_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1187,39 +1233,63 @@ func (_c *MockNotificationSender_SendConfirmationSuccess_Call) Run(run func(cont
 		if args[1] != nil {
 			arg1 = args[1].(*v1.SendConfirmationSuccessRequest)
 		}
+		var arg2 []grpc.CallOption
+		var variadicArgs []grpc.CallOption
+		if len(args) > 2 {
+			variadicArgs = args[2].([]grpc.CallOption)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockNotificationSender_SendConfirmationSuccess_Call) Return(err error) *MockNotificationSender_SendConfirmationSuccess_Call {
-	_c.Call.Return(err)
+func (_c *MockNotificationSender_SendConfirmationSuccess_Call) Return(sendConfirmationSuccessResponse *v1.SendConfirmationSuccessResponse, err error) *MockNotificationSender_SendConfirmationSuccess_Call {
+	_c.Call.Return(sendConfirmationSuccessResponse, err)
 	return _c
 }
 
-func (_c *MockNotificationSender_SendConfirmationSuccess_Call) RunAndReturn(run func(context1 context.Context, sendConfirmationSuccessRequest *v1.SendConfirmationSuccessRequest) error) *MockNotificationSender_SendConfirmationSuccess_Call {
+func (_c *MockNotificationSender_SendConfirmationSuccess_Call) RunAndReturn(run func(context1 context.Context, sendConfirmationSuccessRequest *v1.SendConfirmationSuccessRequest, callOptions ...grpc.CallOption) (*v1.SendConfirmationSuccessResponse, error)) *MockNotificationSender_SendConfirmationSuccess_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SendUnsubscribeSuccess provides a mock function for the type MockNotificationSender
-func (_mock *MockNotificationSender) SendUnsubscribeSuccess(context1 context.Context, sendUnsubscribeSuccessRequest *v1.SendUnsubscribeSuccessRequest) error {
-	ret := _mock.Called(context1, sendUnsubscribeSuccessRequest)
+func (_mock *MockNotificationSender) SendUnsubscribeSuccess(context1 context.Context, sendUnsubscribeSuccessRequest *v1.SendUnsubscribeSuccessRequest, callOptions ...grpc.CallOption) (*v1.SendUnsubscribeSuccessResponse, error) {
+	var tmpRet mock.Arguments
+	if len(callOptions) > 0 {
+		tmpRet = _mock.Called(context1, sendUnsubscribeSuccessRequest, callOptions)
+	} else {
+		tmpRet = _mock.Called(context1, sendUnsubscribeSuccessRequest)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SendUnsubscribeSuccess")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendUnsubscribeSuccessRequest) error); ok {
-		r0 = returnFunc(context1, sendUnsubscribeSuccessRequest)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *v1.SendUnsubscribeSuccessResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendUnsubscribeSuccessRequest, ...grpc.CallOption) (*v1.SendUnsubscribeSuccessResponse, error)); ok {
+		return returnFunc(context1, sendUnsubscribeSuccessRequest, callOptions...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendUnsubscribeSuccessRequest, ...grpc.CallOption) *v1.SendUnsubscribeSuccessResponse); ok {
+		r0 = returnFunc(context1, sendUnsubscribeSuccessRequest, callOptions...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1.SendUnsubscribeSuccessResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1.SendUnsubscribeSuccessRequest, ...grpc.CallOption) error); ok {
+		r1 = returnFunc(context1, sendUnsubscribeSuccessRequest, callOptions...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockNotificationSender_SendUnsubscribeSuccess_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SendUnsubscribeSuccess'
@@ -1230,11 +1300,13 @@ type MockNotificationSender_SendUnsubscribeSuccess_Call struct {
 // SendUnsubscribeSuccess is a helper method to define mock.On call
 //   - context1 context.Context
 //   - sendUnsubscribeSuccessRequest *v1.SendUnsubscribeSuccessRequest
-func (_e *MockNotificationSender_Expecter) SendUnsubscribeSuccess(context1 interface{}, sendUnsubscribeSuccessRequest interface{}) *MockNotificationSender_SendUnsubscribeSuccess_Call {
-	return &MockNotificationSender_SendUnsubscribeSuccess_Call{Call: _e.mock.On("SendUnsubscribeSuccess", context1, sendUnsubscribeSuccessRequest)}
+//   - callOptions ...grpc.CallOption
+func (_e *MockNotificationSender_Expecter) SendUnsubscribeSuccess(context1 interface{}, sendUnsubscribeSuccessRequest interface{}, callOptions ...interface{}) *MockNotificationSender_SendUnsubscribeSuccess_Call {
+	return &MockNotificationSender_SendUnsubscribeSuccess_Call{Call: _e.mock.On("SendUnsubscribeSuccess",
+		append([]interface{}{context1, sendUnsubscribeSuccessRequest}, callOptions...)...)}
 }
 
-func (_c *MockNotificationSender_SendUnsubscribeSuccess_Call) Run(run func(context1 context.Context, sendUnsubscribeSuccessRequest *v1.SendUnsubscribeSuccessRequest)) *MockNotificationSender_SendUnsubscribeSuccess_Call {
+func (_c *MockNotificationSender_SendUnsubscribeSuccess_Call) Run(run func(context1 context.Context, sendUnsubscribeSuccessRequest *v1.SendUnsubscribeSuccessRequest, callOptions ...grpc.CallOption)) *MockNotificationSender_SendUnsubscribeSuccess_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1244,20 +1316,27 @@ func (_c *MockNotificationSender_SendUnsubscribeSuccess_Call) Run(run func(conte
 		if args[1] != nil {
 			arg1 = args[1].(*v1.SendUnsubscribeSuccessRequest)
 		}
+		var arg2 []grpc.CallOption
+		var variadicArgs []grpc.CallOption
+		if len(args) > 2 {
+			variadicArgs = args[2].([]grpc.CallOption)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockNotificationSender_SendUnsubscribeSuccess_Call) Return(err error) *MockNotificationSender_SendUnsubscribeSuccess_Call {
-	_c.Call.Return(err)
+func (_c *MockNotificationSender_SendUnsubscribeSuccess_Call) Return(sendUnsubscribeSuccessResponse *v1.SendUnsubscribeSuccessResponse, err error) *MockNotificationSender_SendUnsubscribeSuccess_Call {
+	_c.Call.Return(sendUnsubscribeSuccessResponse, err)
 	return _c
 }
 
-func (_c *MockNotificationSender_SendUnsubscribeSuccess_Call) RunAndReturn(run func(context1 context.Context, sendUnsubscribeSuccessRequest *v1.SendUnsubscribeSuccessRequest) error) *MockNotificationSender_SendUnsubscribeSuccess_Call {
+func (_c *MockNotificationSender_SendUnsubscribeSuccess_Call) RunAndReturn(run func(context1 context.Context, sendUnsubscribeSuccessRequest *v1.SendUnsubscribeSuccessRequest, callOptions ...grpc.CallOption) (*v1.SendUnsubscribeSuccessResponse, error)) *MockNotificationSender_SendUnsubscribeSuccess_Call {
 	_c.Call.Return(run)
 	return _c
 }

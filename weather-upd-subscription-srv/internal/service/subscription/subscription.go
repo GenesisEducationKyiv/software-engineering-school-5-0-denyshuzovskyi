@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"google.golang.org/grpc"
 	"log/slog"
 	"time"
 
@@ -42,9 +43,9 @@ type TokenRepository interface {
 }
 
 type NotificationSender interface {
-	SendConfirmation(context.Context, *v1.SendConfirmationRequest) error
-	SendConfirmationSuccess(context.Context, *v1.SendConfirmationSuccessRequest) error
-	SendUnsubscribeSuccess(context.Context, *v1.SendUnsubscribeSuccessRequest) error
+	SendConfirmation(context.Context, *v1.SendConfirmationRequest, ...grpc.CallOption) (*v1.SendConfirmationResponse, error)
+	SendConfirmationSuccess(context.Context, *v1.SendConfirmationSuccessRequest, ...grpc.CallOption) (*v1.SendConfirmationSuccessResponse, error)
+	SendUnsubscribeSuccess(context.Context, *v1.SendUnsubscribeSuccessRequest, ...grpc.CallOption) (*v1.SendUnsubscribeSuccessResponse, error)
 }
 
 type SubscriptionService struct {
@@ -150,7 +151,7 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.Subscrip
 			},
 		}
 
-		errIn = s.notificationSender.SendConfirmation(ctx, confReq)
+		_, errIn = s.notificationSender.SendConfirmation(ctx, confReq)
 		if errIn != nil {
 			return errIn
 		}
@@ -222,7 +223,7 @@ func (s *SubscriptionService) Confirm(ctx context.Context, tokenStr string) erro
 			},
 		}
 
-		errIn = s.notificationSender.SendConfirmationSuccess(ctx, confSuccessReq)
+		_, errIn = s.notificationSender.SendConfirmationSuccess(ctx, confSuccessReq)
 		if errIn != nil {
 			return errIn
 		}
@@ -272,7 +273,7 @@ func (s *SubscriptionService) Unsubscribe(ctx context.Context, tokenStr string) 
 			},
 		}
 
-		errIn = s.notificationSender.SendUnsubscribeSuccess(ctx, unsubReq)
+		_, errIn = s.notificationSender.SendUnsubscribeSuccess(ctx, unsubReq)
 		if errIn != nil {
 			return errIn
 		}

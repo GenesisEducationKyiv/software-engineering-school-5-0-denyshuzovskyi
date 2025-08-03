@@ -3,13 +3,14 @@ package notification
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
 )
 
 type NotificationSender interface {
-	SendWeatherUpdate(context.Context, *v1.SendWeatherUpdateRequest) error
+	SendWeatherUpdate(context.Context, *v1.SendWeatherUpdateRequest, ...grpc.CallOption) (*v1.SendWeatherUpdateResponse, error)
 }
 
 type NotificationService struct {
@@ -40,7 +41,8 @@ func (s *NotificationService) SendWeatherUpdateNotification(ctx context.Context,
 		},
 	}
 
-	if err := s.notificationSender.SendWeatherUpdate(ctx, weatherUpdReq); err != nil {
+	_, err := s.notificationSender.SendWeatherUpdate(ctx, weatherUpdReq)
+	if err != nil {
 		return fmt.Errorf("send weather update notification: %w", err)
 	}
 

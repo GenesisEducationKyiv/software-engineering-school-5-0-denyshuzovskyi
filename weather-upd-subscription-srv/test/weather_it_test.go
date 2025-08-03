@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"google.golang.org/grpc"
 	"io"
 	"log/slog"
 	"net/http"
@@ -259,10 +260,10 @@ func TestFullCycleIT(t *testing.T) {
 	var capturedSendConfirmRequest *v1.SendConfirmationRequest
 	subsNotificationSenderMock.EXPECT().
 		SendConfirmation(mock.Anything, mock.AnythingOfType("*v1.SendConfirmationRequest")).
-		Run(func(ctx context.Context, req *v1.SendConfirmationRequest) {
+		Run(func(ctx context.Context, req *v1.SendConfirmationRequest, opts ...grpc.CallOption) {
 			capturedSendConfirmRequest = req
 		}).
-		Return(nil).Once()
+		Return(nil, nil).Once()
 
 	mux.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
@@ -273,10 +274,10 @@ func TestFullCycleIT(t *testing.T) {
 	var capturedSendConfirmSuccessRequest *v1.SendConfirmationSuccessRequest
 	subsNotificationSenderMock.EXPECT().
 		SendConfirmationSuccess(mock.Anything, mock.AnythingOfType("*v1.SendConfirmationSuccessRequest")).
-		Run(func(ctx context.Context, req *v1.SendConfirmationSuccessRequest) {
+		Run(func(ctx context.Context, req *v1.SendConfirmationSuccessRequest, opts ...grpc.CallOption) {
 			capturedSendConfirmSuccessRequest = req
 		}).
-		Return(nil).Once()
+		Return(nil, nil).Once()
 
 	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/confirm/%s", lastToken), nil)
 	rr = httptest.NewRecorder()
@@ -289,10 +290,10 @@ func TestFullCycleIT(t *testing.T) {
 	var capturedSendWeatherUpdateRequest *v1.SendWeatherUpdateRequest
 	notificationSenderMock.EXPECT().
 		SendWeatherUpdate(mock.Anything, mock.AnythingOfType("*v1.SendWeatherUpdateRequest")).
-		Run(func(ctx context.Context, req *v1.SendWeatherUpdateRequest) {
+		Run(func(ctx context.Context, req *v1.SendWeatherUpdateRequest, opts ...grpc.CallOption) {
 			capturedSendWeatherUpdateRequest = req
 		}).
-		Return(nil).
+		Return(nil, nil).
 		Once()
 	weatherUpdateSendingService.SendWeatherUpdates(t.Context(), model.Frequency_Daily)
 	require.Equal(t, subscriberEmail, capturedSendWeatherUpdateRequest.GetWeatherUpdateNotification().GetNotificationWithToken().GetNotification().GetTo())
@@ -303,10 +304,10 @@ func TestFullCycleIT(t *testing.T) {
 	var sendUnsubSuccessReq *v1.SendUnsubscribeSuccessRequest
 	subsNotificationSenderMock.EXPECT().
 		SendUnsubscribeSuccess(mock.Anything, mock.AnythingOfType("*v1.SendUnsubscribeSuccessRequest")).
-		Run(func(ctx context.Context, req *v1.SendUnsubscribeSuccessRequest) {
+		Run(func(ctx context.Context, req *v1.SendUnsubscribeSuccessRequest, opts ...grpc.CallOption) {
 			sendUnsubSuccessReq = req
 		}).
-		Return(nil).
+		Return(nil, nil).
 		Once()
 	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/unsubscribe/%s", lastToken), nil)
 	rr = httptest.NewRecorder()

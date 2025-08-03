@@ -9,6 +9,7 @@ import (
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
 	mock "github.com/stretchr/testify/mock"
+	"google.golang.org/grpc"
 )
 
 // NewMockNotificationSender creates a new instance of MockNotificationSender. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -39,20 +40,37 @@ func (_m *MockNotificationSender) EXPECT() *MockNotificationSender_Expecter {
 }
 
 // SendWeatherUpdate provides a mock function for the type MockNotificationSender
-func (_mock *MockNotificationSender) SendWeatherUpdate(context1 context.Context, sendWeatherUpdateRequest *v1.SendWeatherUpdateRequest) error {
-	ret := _mock.Called(context1, sendWeatherUpdateRequest)
+func (_mock *MockNotificationSender) SendWeatherUpdate(context1 context.Context, sendWeatherUpdateRequest *v1.SendWeatherUpdateRequest, callOptions ...grpc.CallOption) (*v1.SendWeatherUpdateResponse, error) {
+	var tmpRet mock.Arguments
+	if len(callOptions) > 0 {
+		tmpRet = _mock.Called(context1, sendWeatherUpdateRequest, callOptions)
+	} else {
+		tmpRet = _mock.Called(context1, sendWeatherUpdateRequest)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SendWeatherUpdate")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendWeatherUpdateRequest) error); ok {
-		r0 = returnFunc(context1, sendWeatherUpdateRequest)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *v1.SendWeatherUpdateResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendWeatherUpdateRequest, ...grpc.CallOption) (*v1.SendWeatherUpdateResponse, error)); ok {
+		return returnFunc(context1, sendWeatherUpdateRequest, callOptions...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1.SendWeatherUpdateRequest, ...grpc.CallOption) *v1.SendWeatherUpdateResponse); ok {
+		r0 = returnFunc(context1, sendWeatherUpdateRequest, callOptions...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1.SendWeatherUpdateResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1.SendWeatherUpdateRequest, ...grpc.CallOption) error); ok {
+		r1 = returnFunc(context1, sendWeatherUpdateRequest, callOptions...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockNotificationSender_SendWeatherUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SendWeatherUpdate'
@@ -63,11 +81,13 @@ type MockNotificationSender_SendWeatherUpdate_Call struct {
 // SendWeatherUpdate is a helper method to define mock.On call
 //   - context1 context.Context
 //   - sendWeatherUpdateRequest *v1.SendWeatherUpdateRequest
-func (_e *MockNotificationSender_Expecter) SendWeatherUpdate(context1 interface{}, sendWeatherUpdateRequest interface{}) *MockNotificationSender_SendWeatherUpdate_Call {
-	return &MockNotificationSender_SendWeatherUpdate_Call{Call: _e.mock.On("SendWeatherUpdate", context1, sendWeatherUpdateRequest)}
+//   - callOptions ...grpc.CallOption
+func (_e *MockNotificationSender_Expecter) SendWeatherUpdate(context1 interface{}, sendWeatherUpdateRequest interface{}, callOptions ...interface{}) *MockNotificationSender_SendWeatherUpdate_Call {
+	return &MockNotificationSender_SendWeatherUpdate_Call{Call: _e.mock.On("SendWeatherUpdate",
+		append([]interface{}{context1, sendWeatherUpdateRequest}, callOptions...)...)}
 }
 
-func (_c *MockNotificationSender_SendWeatherUpdate_Call) Run(run func(context1 context.Context, sendWeatherUpdateRequest *v1.SendWeatherUpdateRequest)) *MockNotificationSender_SendWeatherUpdate_Call {
+func (_c *MockNotificationSender_SendWeatherUpdate_Call) Run(run func(context1 context.Context, sendWeatherUpdateRequest *v1.SendWeatherUpdateRequest, callOptions ...grpc.CallOption)) *MockNotificationSender_SendWeatherUpdate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -77,20 +97,27 @@ func (_c *MockNotificationSender_SendWeatherUpdate_Call) Run(run func(context1 c
 		if args[1] != nil {
 			arg1 = args[1].(*v1.SendWeatherUpdateRequest)
 		}
+		var arg2 []grpc.CallOption
+		var variadicArgs []grpc.CallOption
+		if len(args) > 2 {
+			variadicArgs = args[2].([]grpc.CallOption)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockNotificationSender_SendWeatherUpdate_Call) Return(err error) *MockNotificationSender_SendWeatherUpdate_Call {
-	_c.Call.Return(err)
+func (_c *MockNotificationSender_SendWeatherUpdate_Call) Return(sendWeatherUpdateResponse *v1.SendWeatherUpdateResponse, err error) *MockNotificationSender_SendWeatherUpdate_Call {
+	_c.Call.Return(sendWeatherUpdateResponse, err)
 	return _c
 }
 
-func (_c *MockNotificationSender_SendWeatherUpdate_Call) RunAndReturn(run func(context1 context.Context, sendWeatherUpdateRequest *v1.SendWeatherUpdateRequest) error) *MockNotificationSender_SendWeatherUpdate_Call {
+func (_c *MockNotificationSender_SendWeatherUpdate_Call) RunAndReturn(run func(context1 context.Context, sendWeatherUpdateRequest *v1.SendWeatherUpdateRequest, callOptions ...grpc.CallOption) (*v1.SendWeatherUpdateResponse, error)) *MockNotificationSender_SendWeatherUpdate_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -10,7 +10,6 @@ import (
 
 	v1 "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/cache"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/notificationservice"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherstack"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/config"
@@ -96,7 +95,7 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 			log.Error("failed to close client", "error", err)
 		}
 	}(conn)
-	notificationServiceClient := notificationservice.NewNotificationServiceClient(v1.NewNotificationServiceClient(conn))
+	notificationServiceClient := v1.NewNotificationServiceClient(conn)
 
 	weatherService := weather.NewWeatherService(cachingWeatherProvider, log)
 	subscriptionService := subscription.NewSubscriptionService(db, cachingWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, notificationServiceClient, log)
