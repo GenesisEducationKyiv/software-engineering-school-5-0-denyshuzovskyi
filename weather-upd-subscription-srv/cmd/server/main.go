@@ -32,7 +32,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -87,33 +86,22 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
 
-	rabbitConn, err := amqp.Dial(cfg.RabbitMQ.Url)
+	rabbitmqRes, err := rabbitmq.InitRabbitMQ(cfg.RabbitMQ.Url)
 	if err != nil {
 		return err
 	}
-	defer func(rabbitConn *amqp.Connection) {
-		err := rabbitConn.Close()
+	defer func(rabbitmqRes *rabbitmq.RabbitMQResources) {
+		err := rabbitmqRes.Close()
 		if err != nil {
-			log.Error("failed to close connection", "error", err)
+			log.Error("unable to close connection", "error", err)
 		}
-	}(rabbitConn)
+	}(rabbitmqRes)
 
-	ch, err := rabbitConn.Channel()
+	err = rabbit.SetUpExchange(rabbitmqRes.Channel, cfg.RabbitMQ.Exchange)
 	if err != nil {
 		return err
 	}
-	defer func(ch *amqp.Channel) {
-		err := ch.Close()
-		if err != nil {
-			log.Error("failed to close channel", "error", err)
-		}
-	}(ch)
-
-	err = rabbit.SetUpExchange(ch, cfg.RabbitMQ.Exchange)
-	if err != nil {
-		return err
-	}
-	notificationPublisher := rabbitmq.NewPublisher(ch, cfg.RabbitMQ.Exchange)
+	notificationPublisher := rabbitmq.NewPublisher(rabbitmqRes.Channel, cfg.RabbitMQ.Exchange)
 	notificationCommandSender := publisher.NewNotificationCommandSender(notificationPublisher)
 
 	weatherService := weather.NewWeatherService(cachingWeatherProvider, log)

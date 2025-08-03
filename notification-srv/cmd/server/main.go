@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	librabbit "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/rabbitmq"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -15,7 +16,6 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/notification-srv/internal/rabbitmq"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/notification-srv/internal/service"
 	"github.com/mailgun/mailgun-go/v4"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func main() {
@@ -36,36 +36,26 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(sigCh)
 
-	conn, err := amqp.Dial(cfg.RabbitMQ.Url)
+	rabbitmqRes, err := librabbit.InitRabbitMQ(cfg.RabbitMQ.Url)
 	if err != nil {
-		return fmt.Errorf("failed to connect to RabbitMQ: %w", err)
+		return err
 	}
-	defer func(conn *amqp.Connection) {
-		err := conn.Close()
+	defer func(rabbitmqRes *librabbit.RabbitMQResources) {
+		err := rabbitmqRes.Close()
 		if err != nil {
-			log.Error("failed to close connection", "error", err)
+			log.Error("error closing rabbitmq", "error", err)
 		}
-	}(conn)
+	}(rabbitmqRes)
 
-	ch, err := conn.Channel()
-	if err != nil {
-		return fmt.Errorf("failed to open channel: %w", err)
-	}
-	defer func(ch *amqp.Channel) {
-		err := ch.Close()
-		if err != nil {
-			log.Error("failed to close channel", "error", err)
-		}
-	}(ch)
-
-	err = rabbitmq.SetUpQueue(ch, cfg.RabbitMQ.Exchange, cfg.RabbitMQ.Queue)
+	err = rabbitmq.SetUpQueue(rabbitmqRes.Channel, cfg.RabbitMQ.Exchange, cfg.RabbitMQ.Queue)
 	if err != nil {
 		return fmt.Errorf("failed to set up RabbitMQ queue: %w", err)
 	}
 
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
 	emailSendingService := service.NewEmailSendingService(cfg.EmailTemplates, emailClient, log)
-	notificationCommandConsumer := consumer.NewNotificationCommandConsumer(ch, cfg.RabbitMQ.Queue, emailSendingService, log)
+	notificationCommandDispatcher := consumer.NewNotificationCommandDispatcher(emailSendingService)
+	notificationCommandConsumer := consumer.NewNotificationCommandConsumer(rabbitmqRes.Channel, cfg.RabbitMQ.Queue, notificationCommandDispatcher, log)
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, 1)

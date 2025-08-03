@@ -70,23 +70,20 @@ func SetUpRabbitMQ(t *testing.T) *amqp.Channel {
 	require.NoError(t, err)
 	t.Logf("RabbitMQ amqpURL: %s", amqpURL)
 
-	conn, err := amqp.Dial(amqpURL)
-	require.NoError(t, err)
-
-	ch, err := conn.Channel()
+	rabbitmqRes, err := rabbitmq.InitRabbitMQ(amqpURL)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
 		t.Log("started cleanup")
 
 		// closing channel before connection might freeze the cleanup
-		require.NoError(t, conn.Close()) // also closes channel
+		require.NoError(t, rabbitmqRes.Close())
 		require.NoError(t, rabbitmqContainer.Terminate(ctx))
 
 		t.Log("finished cleanup")
 	})
 
-	return ch
+	return rabbitmqRes.Channel
 }
 
 func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
@@ -103,7 +100,8 @@ func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
 	emailSent := make(chan struct{}, len(notificationCommands))
 
 	emailSendingService := service.NewEmailSendingService(cfg.EmailTemplates, emailSenderMock, log)
-	notificationCommandConsumer := consumer.NewNotificationCommandConsumer(ch, queueName, emailSendingService, log)
+	notificationCommandDispatcher := consumer.NewNotificationCommandDispatcher(emailSendingService)
+	notificationCommandConsumer := consumer.NewNotificationCommandConsumer(ch, queueName, notificationCommandDispatcher, log)
 
 	var sentEmails []dto.SimpleEmail
 	emailSenderMock.EXPECT().
