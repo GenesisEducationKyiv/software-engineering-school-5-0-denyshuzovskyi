@@ -32,7 +32,7 @@ func NewNotificationServer(sender NotificationSender, log *slog.Logger) *Notific
 func (s *NotificationServer) SendConfirmation(ctx context.Context, req *v1.SendConfirmationRequest) (*v1.SendConfirmationResponse, error) {
 	sendConfirmResp, err := s.sender.SendConfirmation(ctx, req)
 	if err != nil {
-		return &v1.SendConfirmationResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return sendConfirmResp, nil
@@ -41,7 +41,7 @@ func (s *NotificationServer) SendConfirmation(ctx context.Context, req *v1.SendC
 func (s *NotificationServer) SendConfirmationSuccess(ctx context.Context, req *v1.SendConfirmationSuccessRequest) (*v1.SendConfirmationSuccessResponse, error) {
 	sendConfirmSuccessResp, err := s.sender.SendConfirmationSuccess(ctx, req)
 	if err != nil {
-		return &v1.SendConfirmationSuccessResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return sendConfirmSuccessResp, nil
@@ -50,7 +50,7 @@ func (s *NotificationServer) SendConfirmationSuccess(ctx context.Context, req *v
 func (s *NotificationServer) SendUnsubscribeSuccess(ctx context.Context, req *v1.SendUnsubscribeSuccessRequest) (*v1.SendUnsubscribeSuccessResponse, error) {
 	sendUnsubSuccessResp, err := s.sender.SendUnsubscribeSuccess(ctx, req)
 	if err != nil {
-		return &v1.SendUnsubscribeSuccessResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return sendUnsubSuccessResp, nil
@@ -59,7 +59,7 @@ func (s *NotificationServer) SendUnsubscribeSuccess(ctx context.Context, req *v1
 func (s *NotificationServer) SendWeatherUpdate(ctx context.Context, req *v1.SendWeatherUpdateRequest) (*v1.SendWeatherUpdateResponse, error) {
 	sendWeatherUpdResp, err := s.sender.SendWeatherUpdate(ctx, req)
 	if err != nil {
-		return &v1.SendWeatherUpdateResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return sendWeatherUpdResp, nil
