@@ -5,6 +5,11 @@ package test
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+	"sync"
+	"testing"
+
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/command/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/rabbitmq"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/notification-srv/internal/config"
@@ -15,10 +20,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	tcrabbitmq "github.com/testcontainers/testcontainers-go/modules/rabbitmq"
-	"log/slog"
-	"os"
-	"sync"
-	"testing"
 )
 
 var notificationCommands = []notification.NotificationCommand{
