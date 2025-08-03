@@ -24,14 +24,14 @@ func NewNotificationService(notificationSender NotificationSender) *Notification
 
 func (s *NotificationService) SendWeatherUpdateNotification(ctx context.Context, subscriptionData dto.SubscriptionData, weather dto.WeatherDTO) error {
 	weatherUpdReq := &v1.SendWeatherUpdateRequest{
-		WeatherUpdateNotification: &v1.WeatherUpdateNotificationRequest{
-			NotificationWithToken: &v1.NotificationWithTokenRequest{
-				Notification: &v1.NotificationRequest{
+		WeatherUpdateNotification: &v1.WeatherUpdateNotification{
+			NotificationWithToken: &v1.NotificationWithToken{
+				Notification: &v1.Notification{
 					To: subscriptionData.Email,
 				},
 				Token: subscriptionData.Token,
 			},
-			Weather: &v1.WeatherRequest{
+			Weather: &v1.Weather{
 				Location:    subscriptionData.Location,
 				Temperature: weather.Temperature,
 				Humidity:    weather.Humidity,

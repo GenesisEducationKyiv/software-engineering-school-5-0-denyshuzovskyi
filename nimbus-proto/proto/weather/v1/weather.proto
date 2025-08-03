@@ -18,10 +18,7 @@ message GetCurrentWeatherResponse {
 service WeatherService {
   rpc GetCurrentWeather (GetCurrentWeatherRequest) returns (GetCurrentWeatherResponse) {
     option (google.api.http) = {
-      get: "/v1/weather"
-      additional_bindings {
-        get: "/v1/weather/{city}"
-      }
+      get: "/v1/weather/{city}"
     };
   }
 }

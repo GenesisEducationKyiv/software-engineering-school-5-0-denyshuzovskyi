@@ -142,8 +142,8 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.Subscrip
 		}
 
 		confReq := &v1.SendConfirmationRequest{
-			NotificationWithToken: &v1.NotificationWithTokenRequest{
-				Notification: &v1.NotificationRequest{
+			NotificationWithToken: &v1.NotificationWithToken{
+				Notification: &v1.Notification{
 					To: subReq.Email,
 				},
 				Token: token.Token,
@@ -214,8 +214,8 @@ func (s *SubscriptionService) Confirm(ctx context.Context, tokenStr string) erro
 		}
 
 		confSuccessReq := &v1.SendConfirmationSuccessRequest{
-			NotificationWithToken: &v1.NotificationWithTokenRequest{
-				Notification: &v1.NotificationRequest{
+			NotificationWithToken: &v1.NotificationWithToken{
+				Notification: &v1.Notification{
 					To: subscriber.Email,
 				},
 				Token: unsubToken.Token,
@@ -267,7 +267,7 @@ func (s *SubscriptionService) Unsubscribe(ctx context.Context, tokenStr string) 
 		}
 
 		unsubReq := &v1.SendUnsubscribeSuccessRequest{
-			Notification: &v1.NotificationRequest{
+			Notification: &v1.Notification{
 				To: subscriber.Email,
 			},
 		}

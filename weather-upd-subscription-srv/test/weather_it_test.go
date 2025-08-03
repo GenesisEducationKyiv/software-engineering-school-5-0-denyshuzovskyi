@@ -234,7 +234,6 @@ func TestFullCycleIT(t *testing.T) {
 	notificationService := notification.NewNotificationService(notificationSenderMock)
 	weatherService := weather.NewWeatherService(weatherapiProvider, env.Log)
 	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, env.Log)
-	_ = weatherUpdateSendingService
 
 	validate := validator.New()
 	subscriptionValidator := validators.NewSubscriptionValidator(validate)
