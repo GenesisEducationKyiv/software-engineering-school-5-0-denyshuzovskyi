@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: docker-host
+    static_configs:
+      - targets: ['host.docker.internal:9100']
+
+  - job_name: weather-upd-subscription-srv
+    static_configs:
+      - targets: ['weather-upd-subscription-srv:8080']
