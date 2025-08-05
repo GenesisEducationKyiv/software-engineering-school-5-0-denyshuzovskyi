@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/rabbitmq"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/util/logger/samplinghandler"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/cache"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherstack"
@@ -29,18 +33,12 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/redis/go-redis/v9"
-	"log/slog"
-	"net"
-	"net/http"
-	"os"
 )
 
 func main() {
 	cfg := config.ReadConfig("./config/config.yaml")
 	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
-	sampledHandler := samplinghandler.NewProbabilisticSamplingHandler(jsonHandler, 0.1, slog.LevelWarn)
-
-	log := slog.New(sampledHandler)
+	log := slog.New(jsonHandler)
 	weatherLog := slog.New(slog.NewJSONHandler(logger.SetUpRotator("logs/weather.log"), &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	if err := runApp(cfg, weatherLog, log); err != nil {
