@@ -68,6 +68,8 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 
 	cacheMetrics := metrics.NewPrometheusCacheMetrics()
 	cacheMetrics.Register()
+	httpMetrics := metrics.NewPrometheusHTTPMetrics()
+	httpMetrics.Register()
 
 	client := &http.Client{}
 	weatherapiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, client, log)
@@ -124,7 +126,7 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	cron.Start()
 	defer cron.Stop()
 
-	mux := server.InitMux(weatherHandler, subscriptionHandler)
+	mux := server.InitMux(weatherHandler, subscriptionHandler, httpMetrics)
 	srv := &http.Server{
 		Addr:    net.JoinHostPort(cfg.HTTPServer.Host, cfg.HTTPServer.Port),
 		Handler: mux,
