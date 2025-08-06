@@ -18,6 +18,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/logger"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/metrics"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/model"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/publisher"
 	rabbit "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/rabbitmq"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/repository/postgresql"
@@ -70,6 +71,9 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	cacheMetrics.Register()
 	httpMetrics := metrics.NewPrometheusHTTPMetrics()
 	httpMetrics.Register()
+	weatherUpdJobMetrics := metrics.NewPrometheusWeatherUpdJobMetrics()
+	weatherUpdJobMetrics.Register()
+	weatherUpdJobMetrics.Init([]string{string(model.Frequency_Daily), string(model.Frequency_Hourly)})
 
 	client := &http.Client{}
 	weatherapiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, client, log)
@@ -110,7 +114,7 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	weatherService := weather.NewWeatherService(cachingWeatherProvider, log)
 	subscriptionService := subscription.NewSubscriptionService(db, cachingWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, notificationCommandSender, log)
 	notificationService := notification.NewNotificationService(notificationCommandSender)
-	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
+	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, weatherUpdJobMetrics, log)
 
 	validate := validator.New()
 	locationValidator := validators.NewLocationValidator(validate)

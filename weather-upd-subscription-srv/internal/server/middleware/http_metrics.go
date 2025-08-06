@@ -20,7 +20,6 @@ func HTTPMetricsMiddleware(metrics HTTPMetrics, next http.Handler) http.Handler 
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
-		duration := time.Since(start).Seconds()
 
 		var url string
 		if r.Pattern != "" {
@@ -29,6 +28,7 @@ func HTTPMetricsMiddleware(metrics HTTPMetrics, next http.Handler) http.Handler 
 			url = r.URL.Path
 		}
 
+		duration := time.Since(start).Seconds()
 		metrics.ObserveRequest(r.Method, url, fmt.Sprintf("%d", rec.status), duration)
 	})
 }

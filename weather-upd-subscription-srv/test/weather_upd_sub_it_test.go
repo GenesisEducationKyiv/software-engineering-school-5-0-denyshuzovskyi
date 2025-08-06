@@ -233,7 +233,26 @@ func TestFullCycleIT(t *testing.T) {
 		env.Log)
 	notificationService := notification.NewNotificationService(notificationSenderMock)
 	weatherService := weather.NewWeatherService(weatherapiProvider, env.Log)
-	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, env.Log)
+
+	jobRuns := prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_job_runs", Help: ""}, []string{"frequency"})
+	notificationsSent := prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_notifications_sent", Help: ""}, []string{"frequency"})
+	notificationsFailed := prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_notifications_failed", Help: ""}, []string{"frequency"})
+	subscriptionsHandled := prometheus.NewCounterVec(prometheus.CounterOpts{Name: "test_subscriptions_handled", Help: ""}, []string{"frequency"})
+	jobDuration := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "test_job_duration_seconds",
+		Help:    "",
+		Buckets: prometheus.DefBuckets,
+	},
+		[]string{"frequency"},
+	)
+	weatherUpdJobMetrics := metrics.NewPrometheusWeatherUpdJobMetrics(
+		metrics.WithJobRunsCounterVec(jobRuns),
+		metrics.WithNotificationsSentCounterVec(notificationsSent),
+		metrics.WithNotificationsFailedCounterVec(notificationsFailed),
+		metrics.WithSubscriptionsHandledCounterVec(subscriptionsHandled),
+		metrics.WithJobDurationHistogramVec(jobDuration))
+	weatherUpdJobMetrics.Init([]string{string(model.Frequency_Hourly), string(model.Frequency_Daily)})
+	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, weatherUpdJobMetrics, env.Log)
 
 	validate := validator.New()
 	subscriptionValidator := validators.NewSubscriptionValidator(validate)
@@ -298,6 +317,8 @@ func TestFullCycleIT(t *testing.T) {
 	require.Equal(t, subscriberEmail, capturedSendWeatherUpdate.To)
 	lastToken = capturedSendWeatherUpdate.Token
 	require.NotEmpty(t, lastToken)
+	assertWeatherUpdJobMetrics(t, jobRuns, notificationsSent, notificationsFailed, subscriptionsHandled, string(model.Frequency_Daily), 1, 1, 0, 1, 0.1)
+	assertWeatherUpdJobMetrics(t, jobRuns, notificationsSent, notificationsFailed, subscriptionsHandled, string(model.Frequency_Hourly), 0, 0, 0, 0, 0.1)
 
 	// Unsubscribe
 	var sendUnsubSuccess libnotification.SendUnsubscribeSuccess
@@ -325,11 +346,11 @@ func assertWeatherResponse(
 ) {
 	t.Helper()
 	actualWeatherDto, err := testutil.UnmarshalJSONFromReader[dto.WeatherDTO](body)
-	require.NoError(t, err)
+	require.NoError(t, err, "failed to unmarshal weather response")
 
-	require.InDelta(t, expectedTemp, actualWeatherDto.Temperature, delta)
-	require.InDelta(t, expectedHum, actualWeatherDto.Humidity, delta)
-	require.Equal(t, expectedDesc, actualWeatherDto.Description)
+	require.InDelta(t, expectedTemp, actualWeatherDto.Temperature, delta, "temperature mismatch")
+	require.InDelta(t, expectedHum, actualWeatherDto.Humidity, delta, "humidity mismatch")
+	require.Equal(t, expectedDesc, actualWeatherDto.Description, "description mismatch")
 }
 
 func assertCacheMetrics(
@@ -344,7 +365,28 @@ func assertCacheMetrics(
 ) {
 	t.Helper()
 
-	require.InDelta(t, float64(hit), ptestutil.ToFloat64(hitc), delta)
-	require.InDelta(t, float64(miss), ptestutil.ToFloat64(missc), delta)
-	require.InDelta(t, float64(errCount), ptestutil.ToFloat64(errc), delta)
+	require.InDelta(t, float64(hit), ptestutil.ToFloat64(hitc), delta, "cache hits mismatch")
+	require.InDelta(t, float64(miss), ptestutil.ToFloat64(missc), delta, "cache misses mismatch")
+	require.InDelta(t, float64(errCount), ptestutil.ToFloat64(errc), delta, "cache errors mismatch")
+}
+
+func assertWeatherUpdJobMetrics(
+	t *testing.T,
+	runs *prometheus.CounterVec,
+	sent *prometheus.CounterVec,
+	failed *prometheus.CounterVec,
+	handled *prometheus.CounterVec,
+	frequency string,
+	expectedRuns int,
+	expectedSent int,
+	expectedFailed int,
+	expectedHandled int,
+	delta float64,
+) {
+	t.Helper()
+
+	require.InDelta(t, float64(expectedRuns), ptestutil.ToFloat64(runs.WithLabelValues(frequency)), delta, "job runs mismatch")
+	require.InDelta(t, float64(expectedSent), ptestutil.ToFloat64(sent.WithLabelValues(frequency)), delta, "notification sent mismatch")
+	require.InDelta(t, float64(expectedFailed), ptestutil.ToFloat64(failed.WithLabelValues(frequency)), delta, "notification failed mismatch")
+	require.InDelta(t, float64(expectedHandled), ptestutil.ToFloat64(handled.WithLabelValues(frequency)), delta, "subscriptions handled mismatch")
 }

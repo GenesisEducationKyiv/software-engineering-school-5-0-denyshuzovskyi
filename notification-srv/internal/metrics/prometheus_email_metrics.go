@@ -45,7 +45,7 @@ func (n *PrometheusEmailMetrics) Register() {
 	prometheus.MustRegister(n.emailSent, n.emailFailed)
 }
 
-func (n *PrometheusEmailMetrics) InitEmailTypes(types []string) {
+func (n *PrometheusEmailMetrics) Init(types []string) {
 	for _, t := range types {
 		n.emailSent.WithLabelValues(t).Add(0)
 		n.emailFailed.WithLabelValues(t).Add(0)
