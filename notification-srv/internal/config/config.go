@@ -8,9 +8,15 @@ import (
 )
 
 type Config struct {
+	HTTPServer     HTTPServer     `yaml:"server"`
 	RabbitMQ       RabbitMQ       `yaml:"rabbitmq"`
 	EmailService   EmailService   `yaml:"email-service"`
 	EmailTemplates EmailTemplates `yaml:"email-templates"`
+}
+
+type HTTPServer struct {
+	Host string `yaml:"host" env:"NOTIFICATION_SRV_HTTP_SERVER_HOST" env-default:"0.0.0.0"`
+	Port string `yaml:"port" env:"NOTIFICATION_SRV_HTTP_SERVER_PORT"`
 }
 
 type EmailService struct {

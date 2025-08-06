@@ -116,8 +116,8 @@ services:
     networks:
       - nimbus-notify-network
     environment:
-      SERVER_HOST: ${SERVER_HOST}
-      SERVER_PORT: ${SERVER_PORT}
+      SUBS_SRV_HTTP_SERVER_HOST: ${SUBS_SRV_HTTP_SERVER_HOST}
+      SUBS_SRV_HTTP_SERVER_PORT: ${SUBS_SRV_HTTP_SERVER_PORT}
       DATABASE_URL: ${DATABASE_URL}
       WEATHER_PROVIDER_URL: ${WEATHER_PROVIDER_URL}
       WEATHER_PROVIDER_KEY: ${WEATHER_PROVIDER_KEY}
@@ -132,9 +132,13 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    ports:
+      - "8081:8081"
     networks:
       - nimbus-notify-network
     environment:
+      NOTIFICATION_SRV_HTTP_SERVER_HOST: ${NOTIFICATION_SRV_HTTP_SERVER_HOST}
+      NOTIFICATION_SRV_HTTP_SERVER_PORT: ${NOTIFICATION_SRV_HTTP_SERVER_PORT}
       EMAIL_SERVICE_DOMAIN: ${EMAIL_SERVICE_DOMAIN}
       EMAIL_SERVICE_KEY: ${EMAIL_SERVICE_KEY}
       RABBITMQ_URL: ${RABBITMQ_URL}

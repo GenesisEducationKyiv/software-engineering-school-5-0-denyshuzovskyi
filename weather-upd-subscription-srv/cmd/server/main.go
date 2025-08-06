@@ -132,7 +132,7 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 		Handler: mux,
 	}
 
-	log.Info("starting http server", "addr", srv.Addr)
+	log.Info("starting HTTP server", "addr", srv.Addr)
 
 	return srv.ListenAndServe()
 }

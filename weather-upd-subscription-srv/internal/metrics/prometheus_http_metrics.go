@@ -8,27 +8,27 @@ type PrometheusHTTPMetrics struct {
 	inFlight        prometheus.Gauge
 }
 
-type HTTPOption func(*PrometheusHTTPMetrics)
+type HTTPMetricOption func(*PrometheusHTTPMetrics)
 
-func WithRequestCount(counter *prometheus.CounterVec) HTTPOption {
+func WithRequestCount(counter *prometheus.CounterVec) HTTPMetricOption {
 	return func(m *PrometheusHTTPMetrics) {
 		m.requestCount = counter
 	}
 }
 
-func WithRequestDuration(histogram *prometheus.HistogramVec) HTTPOption {
+func WithRequestDuration(histogram *prometheus.HistogramVec) HTTPMetricOption {
 	return func(m *PrometheusHTTPMetrics) {
 		m.requestDuration = histogram
 	}
 }
 
-func WithInFlightGauge(gauge prometheus.Gauge) HTTPOption {
+func WithInFlightGauge(gauge prometheus.Gauge) HTTPMetricOption {
 	return func(m *PrometheusHTTPMetrics) {
 		m.inFlight = gauge
 	}
 }
 
-func NewPrometheusHTTPMetrics(opts ...HTTPOption) *PrometheusHTTPMetrics {
+func NewPrometheusHTTPMetrics(opts ...HTTPMetricOption) *PrometheusHTTPMetrics {
 	m := &PrometheusHTTPMetrics{
 		requestCount: prometheus.NewCounterVec(
 			prometheus.CounterOpts{

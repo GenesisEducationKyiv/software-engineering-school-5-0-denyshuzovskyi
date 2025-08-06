@@ -13,3 +13,7 @@ scrape_configs:
   - job_name: weather-upd-subscription-srv
     static_configs:
       - targets: ['weather-upd-subscription-srv:8080']
+
+  - job_name: notification-srv
+    static_configs:
+      - targets: ['notification-srv:8081']

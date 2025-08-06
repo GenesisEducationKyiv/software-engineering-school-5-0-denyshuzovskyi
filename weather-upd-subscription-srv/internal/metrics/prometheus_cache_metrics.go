@@ -8,27 +8,27 @@ type PrometheusCacheMetrics struct {
 	cacheErrors prometheus.Counter
 }
 
-type Option func(*PrometheusCacheMetrics)
+type CacheMetricOption func(*PrometheusCacheMetrics)
 
-func WithCacheHitsCounter(counter prometheus.Counter) Option {
+func WithCacheHitsCounter(counter prometheus.Counter) CacheMetricOption {
 	return func(p *PrometheusCacheMetrics) {
 		p.cacheHits = counter
 	}
 }
 
-func WithCacheMissesCounter(counter prometheus.Counter) Option {
+func WithCacheMissesCounter(counter prometheus.Counter) CacheMetricOption {
 	return func(p *PrometheusCacheMetrics) {
 		p.cacheMisses = counter
 	}
 }
 
-func WithCacheErrorsCounter(counter prometheus.Counter) Option {
+func WithCacheErrorsCounter(counter prometheus.Counter) CacheMetricOption {
 	return func(p *PrometheusCacheMetrics) {
 		p.cacheErrors = counter
 	}
 }
 
-func NewPrometheusCacheMetrics(opts ...Option) *PrometheusCacheMetrics {
+func NewPrometheusCacheMetrics(opts ...CacheMetricOption) *PrometheusCacheMetrics {
 	p := &PrometheusCacheMetrics{
 		cacheHits: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "cache_hits_total",
