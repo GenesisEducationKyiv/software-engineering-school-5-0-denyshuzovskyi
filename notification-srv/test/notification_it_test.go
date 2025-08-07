@@ -5,6 +5,9 @@ package test
 import (
 	"context"
 	"errors"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/notification-srv/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus"
+	ptestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"log/slog"
 	"os"
 	"sync"
@@ -100,7 +103,24 @@ func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
 	emailSenderMock := service.NewMockEmailSender(t)
 	emailSent := make(chan struct{}, len(notificationCommands))
 
-	emailSendingService := service.NewEmailSendingService(cfg.EmailTemplates, emailSenderMock, log)
+	emailSentMetric := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "test_email_sent_total",
+		Help: "",
+	}, []string{"type"})
+
+	emailFailedMetric := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "test_email_failed_total",
+		Help: "",
+	}, []string{"type"})
+
+	emailMetrics := metrics.NewPrometheusEmailMetrics(
+		metrics.WithEmailSentCounterVec(emailSentMetric),
+		metrics.WithEmailFailedCounterVec(emailFailedMetric),
+	)
+	emailTypes := []string{notification.Confirmation, notification.ConfirmationSuccess, notification.WeatherUpdate, notification.UnsubscribeSuccess}
+	emailMetrics.Init(emailTypes)
+
+	emailSendingService := service.NewEmailSendingService(cfg.EmailTemplates, emailSenderMock, emailMetrics, log)
 	notificationCommandDispatcher := consumer.NewNotificationCommandDispatcher(emailSendingService)
 	notificationCommandConsumer := consumer.NewNotificationCommandConsumer(ch, queueName, notificationCommandDispatcher, log)
 
@@ -148,6 +168,12 @@ func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
 	require.Equal(t, cfg.EmailTemplates.WeatherUpdate.Subject, sentEmails[2].Subject)
 	require.Equal(t, cfg.EmailTemplates.UnsubscribeSuccess.Subject, sentEmails[3].Subject)
 
+	delta := 0.1
+	for _, emailType := range emailTypes {
+		assertEmailMetrics(t, emailSentMetric, emailFailedMetric, emailType, 1, 0, delta)
+	}
+	assertEmailMetrics(t, emailSentMetric, emailFailedMetric, "unknown", 0, 0, delta)
+
 	wg.Wait()
 	t.Log("test completed successfully")
 }
@@ -163,4 +189,19 @@ func publishNotificationCommand(t *testing.T, ch *amqp.Channel, queue string, cm
 	require.NoError(t, err)
 
 	t.Logf("published notification %s", cmd.Type())
+}
+
+func assertEmailMetrics(
+	t *testing.T,
+	sent *prometheus.CounterVec,
+	failed *prometheus.CounterVec,
+	emailType string,
+	expectedSent int,
+	expectedFailed int,
+	delta float64,
+) {
+	t.Helper()
+
+	require.InDelta(t, float64(expectedSent), ptestutil.ToFloat64(sent.WithLabelValues(emailType)), delta, "emails sent mismatch")
+	require.InDelta(t, float64(expectedFailed), ptestutil.ToFloat64(failed.WithLabelValues(emailType)), delta, "emails failed mismatch")
 }

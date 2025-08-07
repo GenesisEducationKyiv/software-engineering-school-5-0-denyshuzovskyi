@@ -59,14 +59,12 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 	}
 
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
-	emailSendingService := service.NewEmailSendingService(cfg.EmailTemplates, emailClient, log)
-
 	emailMetrics := metrics.NewPrometheusEmailMetrics()
 	emailMetrics.Register()
 	emailMetrics.Init([]string{notification.Confirmation, notification.ConfirmationSuccess, notification.WeatherUpdate, notification.UnsubscribeSuccess})
-	emailSendingServiceWithMetrics := service.NewEmailSendingServiceWithMetrics(emailSendingService, emailMetrics)
+	emailSendingService := service.NewEmailSendingService(cfg.EmailTemplates, emailClient, emailMetrics, log)
 
-	notificationCommandDispatcher := consumer.NewNotificationCommandDispatcher(emailSendingServiceWithMetrics)
+	notificationCommandDispatcher := consumer.NewNotificationCommandDispatcher(emailSendingService)
 	notificationCommandConsumer := consumer.NewNotificationCommandConsumer(rabbitmqRes.Channel, cfg.RabbitMQ.Queue, notificationCommandDispatcher, log)
 
 	var wg sync.WaitGroup

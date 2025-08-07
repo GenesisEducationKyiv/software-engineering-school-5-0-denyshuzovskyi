@@ -14,16 +14,23 @@ type EmailSender interface {
 	Send(context.Context, dto.SimpleEmail) error
 }
 
+type EmailMetrics interface {
+	RecordEmailSent(string)
+	RecordEmailFailed(string)
+}
+
 type EmailSendingService struct {
 	emailTemplates config.EmailTemplates
 	sender         EmailSender
+	emailMetrics   EmailMetrics
 	log            *slog.Logger
 }
 
-func NewEmailSendingService(emailTemplates config.EmailTemplates, sender EmailSender, log *slog.Logger) *EmailSendingService {
+func NewEmailSendingService(emailTemplates config.EmailTemplates, sender EmailSender, emailMetrics EmailMetrics, log *slog.Logger) *EmailSendingService {
 	return &EmailSendingService{
 		emailTemplates: emailTemplates,
 		sender:         sender,
+		emailMetrics:   emailMetrics,
 		log:            log,
 	}
 }
@@ -41,7 +48,7 @@ func (s *EmailSendingService) SendConfirmation(ctx context.Context, sendConfirm 
 		),
 	}
 
-	if err := s.sender.Send(ctx, email); err != nil {
+	if err := s.recordMetric(s.sender.Send(ctx, email), &sendConfirm); err != nil {
 		return fmt.Errorf("sending confirmation email: %w", err)
 	}
 	s.log.Debug("sent confirmation email successfully", "to", sendConfirm.To)
@@ -62,7 +69,7 @@ func (s *EmailSendingService) SendConfirmationSuccess(ctx context.Context, sendC
 		),
 	}
 
-	if err := s.sender.Send(ctx, email); err != nil {
+	if err := s.recordMetric(s.sender.Send(ctx, email), &sendConfirmSuccess); err != nil {
 		return fmt.Errorf("sending confirmation success email: %w", err)
 	}
 	s.log.Debug("sent confirmation success email successfully", "to", sendConfirmSuccess.To)
@@ -87,7 +94,7 @@ func (s *EmailSendingService) SendWeatherUpdate(ctx context.Context, sendWeather
 		),
 	}
 
-	if err := s.sender.Send(ctx, email); err != nil {
+	if err := s.recordMetric(s.sender.Send(ctx, email), &sendWeatherUpd); err != nil {
 		return fmt.Errorf("sending weather update email: %w", err)
 	}
 	s.log.Debug("sent weather update email successfully", "to", sendWeatherUpd.To)
@@ -105,10 +112,20 @@ func (s *EmailSendingService) SendUnsubscribeSuccess(ctx context.Context, unsubS
 		Text:    template.Text,
 	}
 
-	if err := s.sender.Send(ctx, email); err != nil {
+	if err := s.recordMetric(s.sender.Send(ctx, email), &unsubSuccess); err != nil {
 		return fmt.Errorf("sending unsubscribe email: %w", err)
 	}
 	s.log.Debug("sent unsubscribe success email successfully", "to", unsubSuccess.To)
 
+	return nil
+}
+
+func (s *EmailSendingService) recordMetric(err error, command notification.NotificationCommand) error {
+	if err != nil {
+		s.emailMetrics.RecordEmailFailed(command.Type())
+		return err
+	}
+
+	s.emailMetrics.RecordEmailSent(command.Type())
 	return nil
 }
