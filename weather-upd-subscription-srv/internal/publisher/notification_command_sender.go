@@ -24,7 +24,7 @@ func (n *NotificationCommandSender) SendConfirmation(ctx context.Context, sendCo
 	if err != nil {
 		return err
 	}
-	return n.cmdPublisher.Publish(ctx, rabbitmq.SendConfirmationKey, body)
+	return n.cmdPublisher.Publish(ctx, string(rabbitmq.SendConfirmationKey), body)
 }
 
 func (n *NotificationCommandSender) SendConfirmationSuccess(ctx context.Context, sendConfSuccess notification.SendConfirmationSuccess) error {
@@ -33,7 +33,7 @@ func (n *NotificationCommandSender) SendConfirmationSuccess(ctx context.Context,
 		return err
 	}
 
-	return n.cmdPublisher.Publish(ctx, rabbitmq.SendConfirmationSuccessKey, body)
+	return n.cmdPublisher.Publish(ctx, string(rabbitmq.SendConfirmationSuccessKey), body)
 }
 
 func (n *NotificationCommandSender) SendUnsubscribeSuccess(ctx context.Context, sendUnsubSuccess notification.SendUnsubscribeSuccess) error {
@@ -42,7 +42,7 @@ func (n *NotificationCommandSender) SendUnsubscribeSuccess(ctx context.Context, 
 		return err
 	}
 
-	return n.cmdPublisher.Publish(ctx, rabbitmq.SendUnsubscribeSuccessKey, body)
+	return n.cmdPublisher.Publish(ctx, string(rabbitmq.SendUnsubscribeSuccessKey), body)
 }
 
 func (n *NotificationCommandSender) SendWeatherUpdate(ctx context.Context, sendWeatherUpd notification.SendWeatherUpdate) error {
@@ -51,5 +51,5 @@ func (n *NotificationCommandSender) SendWeatherUpdate(ctx context.Context, sendW
 		return err
 	}
 
-	return n.cmdPublisher.Publish(ctx, rabbitmq.SendWeatherUpdateKey, body)
+	return n.cmdPublisher.Publish(ctx, string(rabbitmq.SendWeatherUpdateKey), body)
 }

@@ -34,7 +34,7 @@ func (r *RabbitMQResources) Close() error {
 	// also closes channel
 	err := r.Conn.Close()
 	if err != nil {
-		return fmt.Errorf("failed to close RabbitMQ connection %w", err)
+		return fmt.Errorf("failed to close RabbitMQ connection: %w", err)
 	}
 
 	return nil

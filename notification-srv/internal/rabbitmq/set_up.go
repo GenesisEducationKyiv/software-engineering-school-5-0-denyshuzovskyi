@@ -13,7 +13,7 @@ func SetUpQueue(ch *amqp.Channel, exchangeName string, queueName string) error {
 		return fmt.Errorf("failed to declare queue: %w", err)
 	}
 
-	keys := []string{
+	keys := []rabbitmq.RoutingKey{
 		rabbitmq.SendConfirmationKey,
 		rabbitmq.SendConfirmationSuccessKey,
 		rabbitmq.SendWeatherUpdateKey,
@@ -21,7 +21,7 @@ func SetUpQueue(ch *amqp.Channel, exchangeName string, queueName string) error {
 	}
 
 	for _, key := range keys {
-		err = ch.QueueBind(queue.Name, key, exchangeName, false, nil)
+		err = ch.QueueBind(queue.Name, string(key), exchangeName, false, nil)
 		if err != nil {
 			return fmt.Errorf("failed to bind queue to exchange: %w", err)
 		}

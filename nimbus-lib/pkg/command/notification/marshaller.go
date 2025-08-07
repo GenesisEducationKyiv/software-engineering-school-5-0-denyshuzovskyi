@@ -8,21 +8,19 @@ import (
 )
 
 func MarshalEnvelopeFromCommand(cmd NotificationCommand) ([]byte, error) {
-	var empty []byte
-
 	payload, err := json.Marshal(cmd)
 	if err != nil {
-		return empty, fmt.Errorf("marshal command: %w", err)
+		return nil, fmt.Errorf("marshal command: %w", err)
 	}
 
 	env := message.Envelope{
-		Type:    cmd.Type(),
+		Type:    string(cmd.Type()),
 		Payload: payload,
 	}
 
 	body, err := json.Marshal(env)
 	if err != nil {
-		return empty, fmt.Errorf("marshal envelope: %w", err)
+		return nil, fmt.Errorf("marshal envelope: %w", err)
 	}
 
 	return body, nil

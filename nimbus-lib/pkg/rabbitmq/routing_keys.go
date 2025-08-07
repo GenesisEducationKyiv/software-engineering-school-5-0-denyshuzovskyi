@@ -1,8 +1,10 @@
 package rabbitmq
 
+type RoutingKey string
+
 const (
-	SendConfirmationKey        = "notification.send.confirmation"
-	SendConfirmationSuccessKey = "notification.send.confirmation_success"
-	SendUnsubscribeSuccessKey  = "notification.send.unsubscribe_success"
-	SendWeatherUpdateKey       = "notification.send.weather_update"
+	SendConfirmationKey        RoutingKey = "notification.send.confirmation"
+	SendConfirmationSuccessKey RoutingKey = "notification.send.confirmation_success"
+	SendUnsubscribeSuccessKey  RoutingKey = "notification.send.unsubscribe_success"
+	SendWeatherUpdateKey       RoutingKey = "notification.send.weather_update"
 )
