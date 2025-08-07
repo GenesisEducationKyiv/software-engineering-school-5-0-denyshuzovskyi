@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 
-	v1 "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/rabbitmq"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/cache"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherapi"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/client/weatherstack"
@@ -18,6 +18,9 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/logger"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/metrics"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/model"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/publisher"
+	rabbit "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/rabbitmq"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/repository/postgresql"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/server"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/server/handler"
@@ -31,13 +34,12 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/redis/go-redis/v9"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
 	cfg := config.ReadConfig("./config/config.yaml")
-	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
+	log := slog.New(jsonHandler)
 	weatherLog := slog.New(slog.NewJSONHandler(logger.SetUpRotator("logs/weather.log"), &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	if err := runApp(cfg, weatherLog, log); err != nil {
@@ -67,6 +69,11 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 
 	cacheMetrics := metrics.NewPrometheusCacheMetrics()
 	cacheMetrics.Register()
+	httpMetrics := metrics.NewPrometheusHTTPMetrics()
+	httpMetrics.Register()
+	weatherUpdJobMetrics := metrics.NewPrometheusWeatherUpdJobMetrics()
+	weatherUpdJobMetrics.Register()
+	weatherUpdJobMetrics.Init([]string{string(model.Frequency_Daily), string(model.Frequency_Hourly)})
 
 	client := &http.Client{}
 	weatherapiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, client, log)
@@ -86,21 +93,28 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	subscriptionRepository := postgresql.NewSubscriptionRepository()
 	tokenRepository := postgresql.NewTokenRepository()
 
-	conn, err := grpc.NewClient(cfg.NotificationService.Url, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	rabbitmqRes, err := rabbitmq.InitRabbitMQ(cfg.RabbitMQ.Url)
 	if err != nil {
 		return err
 	}
-	defer func(conn *grpc.ClientConn) {
-		if err := conn.Close(); err != nil {
-			log.Error("failed to close client", "error", err)
+	defer func(rabbitmqRes *rabbitmq.RabbitMQResources) {
+		err := rabbitmqRes.Close()
+		if err != nil {
+			log.Error("unable to close connection", "error", err)
 		}
-	}(conn)
-	notificationServiceClient := v1.NewNotificationServiceClient(conn)
+	}(rabbitmqRes)
+
+	err = rabbit.SetUpExchange(rabbitmqRes.Channel, cfg.RabbitMQ.Exchange)
+	if err != nil {
+		return err
+	}
+	notificationPublisher := rabbitmq.NewPublisher(rabbitmqRes.Channel, cfg.RabbitMQ.Exchange)
+	notificationCommandSender := publisher.NewNotificationCommandSender(notificationPublisher)
 
 	weatherService := weather.NewWeatherService(cachingWeatherProvider, log)
-	subscriptionService := subscription.NewSubscriptionService(db, cachingWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, notificationServiceClient, log)
-	notificationService := notification.NewNotificationService(notificationServiceClient)
-	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
+	subscriptionService := subscription.NewSubscriptionService(db, cachingWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, notificationCommandSender, log)
+	notificationService := notification.NewNotificationService(notificationCommandSender)
+	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, weatherUpdJobMetrics, log)
 
 	validate := validator.New()
 	locationValidator := validators.NewLocationValidator(validate)
@@ -116,13 +130,13 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	cron.Start()
 	defer cron.Stop()
 
-	mux := server.InitMux(weatherHandler, subscriptionHandler)
+	mux := server.InitMux(weatherHandler, subscriptionHandler, httpMetrics)
 	srv := &http.Server{
 		Addr:    net.JoinHostPort(cfg.HTTPServer.Host, cfg.HTTPServer.Port),
 		Handler: mux,
 	}
 
-	log.Info("starting http server", "addr", srv.Addr)
+	log.Info("starting HTTP server", "addr", srv.Addr)
 
 	return srv.ListenAndServe()
 }

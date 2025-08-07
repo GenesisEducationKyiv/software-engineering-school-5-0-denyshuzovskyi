@@ -27,8 +27,79 @@ services:
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 5
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: nimbus-notify-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - nimbus-notify-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: nimbus-notify-prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - nimbus-notify-network
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - nimbus-notify-prometheus-data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  loki:
+    image: grafana/loki:main-21dc238
+    container_name: nimbus-notify-loki
+    ports:
+      - "3100:3100"
+    networks:
+      - nimbus-notify-network
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./config/loki.yml:/etc/loki/loki.yml
+      - nimbus-notify-loki-data:/loki
+
+  promtail:
+    image: grafana/promtail:main-21dc238
+    container_name: nimbus-notify-promtail
+    networks:
+      - nimbus-notify-network
+    command: -config.file=/etc/promtail/promtail.yml
+    volumes:
+      - ./config/promtail.yml:/etc/promtail/promtail.yml
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  grafana:
+    image: grafana/grafana:12.2.0-16711121739
+    container_name: nimbus-notify-grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - nimbus-notify-network
+    volumes:
+      - nimbus-notify-grafana-data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+    depends_on:
+      - prometheus
+      - loki
 
   weather-upd-subscription-srv:
     image: weather-upd-subscription-srv:latest
@@ -38,34 +109,47 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "8080:8080"
     networks:
       - nimbus-notify-network
     environment:
-      SERVER_HOST: ${SERVER_HOST}
-      SERVER_PORT: ${SERVER_PORT}
+      SUBS_SRV_HTTP_SERVER_HOST: ${SUBS_SRV_HTTP_SERVER_HOST}
+      SUBS_SRV_HTTP_SERVER_PORT: ${SUBS_SRV_HTTP_SERVER_PORT}
       DATABASE_URL: ${DATABASE_URL}
       WEATHER_PROVIDER_URL: ${WEATHER_PROVIDER_URL}
       WEATHER_PROVIDER_KEY: ${WEATHER_PROVIDER_KEY}
       REDIS_URL: ${REDIS_URL}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
 
   notification-srv:
     image: notification-srv:latest
     container_name: notification-srv
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     ports:
-      - "50051:50051"
+      - "8081:8081"
     networks:
       - nimbus-notify-network
     environment:
-      GRPC_SERVER_HOST: ${GRPC_SERVER_HOST}
-      GRPC_SERVER_PORT: ${GRPC_SERVER_PORT}
+      NOTIFICATION_SRV_HTTP_SERVER_HOST: ${NOTIFICATION_SRV_HTTP_SERVER_HOST}
+      NOTIFICATION_SRV_HTTP_SERVER_PORT: ${NOTIFICATION_SRV_HTTP_SERVER_PORT}
       EMAIL_SERVICE_DOMAIN: ${EMAIL_SERVICE_DOMAIN}
       EMAIL_SERVICE_KEY: ${EMAIL_SERVICE_KEY}
-
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
 
 networks:
   nimbus-notify-network:
     driver: bridge
+
+volumes:
+  nimbus-notify-grafana-data:
+  nimbus-notify-prometheus-data:
+  nimbus-notify-loki-data:

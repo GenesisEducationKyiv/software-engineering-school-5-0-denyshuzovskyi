@@ -15,11 +15,12 @@ type Config struct {
 	WeatherProvider         WeatherProvider     `yaml:"weather-provider" env-prefix:"WEATHER_PROVIDER_"`
 	FallbackWeatherProvider WeatherProvider     `yaml:"fallback-weather-provider" env-prefix:"FALLBACK_WEATHER_PROVIDER_"`
 	Redis                   Redis               `yaml:"redis"`
+	RabbitMQ                RabbitMQ            `yaml:"rabbitmq"`
 }
 
 type HTTPServer struct {
-	Host string `yaml:"host" env:"SERVER_HOST" env-default:"0.0.0.0"`
-	Port string `yaml:"port" env:"SERVER_PORT" env-default:"8080"`
+	Host string `yaml:"host" env:"SUBS_SRV_HTTP_SERVER_HOST" env-default:"0.0.0.0"`
+	Port string `yaml:"port" env:"SUBS_SRV_HTTP_SERVER_PORT" env-default:"8080"`
 }
 
 type Datasource struct {
@@ -35,6 +36,11 @@ type Redis struct {
 	Url      string        `yaml:"url" env:"REDIS_URL"`
 	Password string        `yaml:"password" env:"REDIS_PASSWORD"`
 	TTL      time.Duration `yaml:"ttl"`
+}
+
+type RabbitMQ struct {
+	Url      string `yaml:"url" env:"RABBITMQ_URL"`
+	Exchange string `yaml:"exchange" env:"RABBITMQ_EXCHANGE"`
 }
 
 type NotificationService struct {

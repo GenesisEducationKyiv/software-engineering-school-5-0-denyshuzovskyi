@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/model"
@@ -21,30 +22,43 @@ type NotificationService interface {
 	SendWeatherUpdateNotification(context.Context, dto.SubscriptionData, dto.WeatherDTO) error
 }
 
-type WeatherUpdateSendingService struct {
-	subscriptionService SubscriptionService
-	weatherService      WeatherService
-	notificationService NotificationService
-	log                 *slog.Logger
+type WeatherUpdJobMetrics interface {
+	RecordJobRun(string)
+	RecordNotificationSent(string)
+	RecordNotificationFailed(string)
+	RecordSubscriptionsHandled(string, int)
+	ObserveJobDuration(string, float64)
 }
 
-func NewWeatherUpdateSendingService(subscriptionService SubscriptionService, weatherService WeatherService, notificationService NotificationService, log *slog.Logger) *WeatherUpdateSendingService {
+type WeatherUpdateSendingService struct {
+	subscriptionService  SubscriptionService
+	weatherService       WeatherService
+	notificationService  NotificationService
+	weatherUpdJobMetrics WeatherUpdJobMetrics
+	log                  *slog.Logger
+}
+
+func NewWeatherUpdateSendingService(subscriptionService SubscriptionService, weatherService WeatherService, notificationService NotificationService, weatherUpdJobMetrics WeatherUpdJobMetrics, log *slog.Logger) *WeatherUpdateSendingService {
 	return &WeatherUpdateSendingService{
-		subscriptionService: subscriptionService,
-		weatherService:      weatherService,
-		notificationService: notificationService,
-		log:                 log,
+		subscriptionService:  subscriptionService,
+		weatherService:       weatherService,
+		notificationService:  notificationService,
+		weatherUpdJobMetrics: weatherUpdJobMetrics,
+		log:                  log,
 	}
 }
 
 func (s *WeatherUpdateSendingService) SendWeatherUpdates(ctx context.Context, frequency model.Frequency) {
 	s.log.Info("started SendWeatherUpdates", "frequency", frequency)
+	start := time.Now()
+	s.weatherUpdJobMetrics.RecordJobRun(string(frequency))
 
 	subscriptionData, err := s.subscriptionService.PrepareSubscriptionDataForFrequency(ctx, frequency)
 	if err != nil {
 		s.log.Error("failed to get subscription data", "error", err)
 		return
 	}
+	s.weatherUpdJobMetrics.RecordSubscriptionsHandled(string(frequency), len(subscriptionData))
 
 	failures := 0
 	for _, subsData := range subscriptionData {
@@ -55,14 +69,18 @@ func (s *WeatherUpdateSendingService) SendWeatherUpdates(ctx context.Context, fr
 				"error", err,
 			)
 			failures++
+			s.weatherUpdJobMetrics.RecordNotificationFailed(string(frequency))
 			continue
 		}
+		s.weatherUpdJobMetrics.RecordNotificationSent(string(frequency))
 		s.log.Debug("weather update sent",
 			"subscriber", subsData.Email,
 			"location", subsData.Location,
 		)
 	}
 
+	duration := time.Since(start).Seconds()
+	s.weatherUpdJobMetrics.ObserveJobDuration(string(frequency), duration)
 	s.log.Info("finished SendWeatherUpdates", "frequency", frequency, "total", len(subscriptionData), "failures", failures)
 }
 

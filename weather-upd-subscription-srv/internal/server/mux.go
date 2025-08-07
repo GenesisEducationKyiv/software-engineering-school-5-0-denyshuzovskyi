@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/server/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -16,12 +17,27 @@ type subscriptionHandler interface {
 	Unsubscribe(http.ResponseWriter, *http.Request)
 }
 
-func InitMux(weatherHandler weatherHandler, subscriptionHandler subscriptionHandler) *http.ServeMux {
+type httpMetrics interface {
+	IncInFlight()
+	DecInFlight()
+	ObserveRequest(string, string, string, float64)
+}
+
+func InitMux(weatherHandler weatherHandler, subscriptionHandler subscriptionHandler, httpMetrics httpMetrics) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /weather", weatherHandler.GetCurrentWeather)
-	mux.HandleFunc("POST /subscribe", subscriptionHandler.Subscribe)
-	mux.HandleFunc("GET /confirm/{token}", subscriptionHandler.Confirm)
-	mux.HandleFunc("GET /unsubscribe/{token}", subscriptionHandler.Unsubscribe)
+
+	mux.Handle("GET /weather",
+		middleware.HTTPMetricsMiddleware(httpMetrics, http.HandlerFunc(weatherHandler.GetCurrentWeather)),
+	)
+	mux.Handle("POST /subscribe",
+		middleware.HTTPMetricsMiddleware(httpMetrics, http.HandlerFunc(subscriptionHandler.Subscribe)),
+	)
+	mux.Handle("GET /confirm/{token}",
+		middleware.HTTPMetricsMiddleware(httpMetrics, http.HandlerFunc(subscriptionHandler.Confirm)),
+	)
+	mux.Handle("GET /unsubscribe/{token}",
+		middleware.HTTPMetricsMiddleware(httpMetrics, http.HandlerFunc(subscriptionHandler.Unsubscribe)),
+	)
 
 	mux.Handle("/metrics", promhttp.Handler())
 
