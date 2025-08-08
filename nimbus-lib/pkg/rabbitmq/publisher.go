@@ -18,11 +18,11 @@ func NewPublisher(ch *amqp.Channel, exchange string) *Publisher {
 	}
 }
 
-func (p *Publisher) Publish(ctx context.Context, routingKey string, body []byte) error {
+func (p *Publisher) Publish(ctx context.Context, routingKey RoutingKey, body []byte) error {
 	return p.channel.PublishWithContext(
 		ctx,
 		p.exchange,
-		routingKey,
+		string(routingKey),
 		false,
 		false,
 		amqp.Publishing{

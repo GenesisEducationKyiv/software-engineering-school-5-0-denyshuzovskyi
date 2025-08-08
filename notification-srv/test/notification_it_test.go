@@ -90,9 +90,15 @@ func SetUpRabbitMQ(t *testing.T) *amqp.Channel {
 func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
 	ch := SetUpRabbitMQ(t)
 
+	defaultExchange := ""
 	queueName := "test-queue"
 	_, err := ch.QueueDeclare(queueName, false, false, false, false, nil)
 	require.NoError(t, err)
+
+	// publishing to exchange = "" (default exchange) with routingKey = queueName routes directly to a queue with that name, if it exists
+	routingKey := rabbitmq.RoutingKey(queueName)
+
+	publisher := rabbitmq.NewPublisher(ch, defaultExchange)
 
 	cfg := config.ReadConfig("./../config/config.yaml")
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
@@ -129,7 +135,7 @@ func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
 	}()
 
 	for _, command := range notificationCommands {
-		publishNotificationCommand(t, ch, queueName, command)
+		publishNotificationCommand(t, publisher, routingKey, command)
 	}
 
 	for i := range len(notificationCommands) {
@@ -152,14 +158,13 @@ func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
 	t.Log("test completed successfully")
 }
 
-func publishNotificationCommand(t *testing.T, ch *amqp.Channel, queue string, cmd notification.NotificationCommand) {
+func publishNotificationCommand(t *testing.T, publisher *rabbitmq.Publisher, routingKey rabbitmq.RoutingKey, cmd notification.NotificationCommand) {
 	t.Helper()
 
 	bytes, err := notification.MarshalEnvelopeFromCommand(cmd)
 	require.NoError(t, err)
 
-	rabbitmqPublisher := rabbitmq.NewPublisher(ch, "")
-	err = rabbitmqPublisher.Publish(t.Context(), queue, bytes)
+	err = publisher.Publish(t.Context(), routingKey, bytes)
 	require.NoError(t, err)
 
 	t.Logf("published notification %s", cmd.Type())
