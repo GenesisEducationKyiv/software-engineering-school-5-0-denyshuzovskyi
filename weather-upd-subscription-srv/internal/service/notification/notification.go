@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/command/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
-	"google.golang.org/grpc"
 )
 
 type NotificationSender interface {
-	SendWeatherUpdate(context.Context, *v1.SendWeatherUpdateRequest, ...grpc.CallOption) (*v1.SendWeatherUpdateResponse, error)
+	SendWeatherUpdate(context.Context, notification.SendWeatherUpdate) error
 }
 
 type NotificationService struct {
@@ -24,25 +23,22 @@ func NewNotificationService(notificationSender NotificationSender) *Notification
 }
 
 func (s *NotificationService) SendWeatherUpdateNotification(ctx context.Context, subscriptionData dto.SubscriptionData, weather dto.WeatherDTO) error {
-	weatherUpdReq := &v1.SendWeatherUpdateRequest{
-		WeatherUpdateNotification: &v1.WeatherUpdateNotification{
-			NotificationWithToken: &v1.NotificationWithToken{
-				Notification: &v1.Notification{
-					To: subscriptionData.Email,
-				},
-				Token: subscriptionData.Token,
+	sendWeatherUpd := notification.SendWeatherUpdate{
+		NotificationWithToken: notification.NotificationWithToken{
+			Notification: notification.Notification{
+				To: subscriptionData.Email,
 			},
-			Weather: &v1.Weather{
-				Location:    subscriptionData.Location,
-				Temperature: weather.Temperature,
-				Humidity:    weather.Humidity,
-				Description: weather.Description,
-			},
+			Token: subscriptionData.Token,
+		},
+		Weather: notification.Weather{
+			Location:    subscriptionData.Location,
+			Temperature: weather.Temperature,
+			Humidity:    weather.Humidity,
+			Description: weather.Description,
 		},
 	}
 
-	_, err := s.notificationSender.SendWeatherUpdate(ctx, weatherUpdReq)
-	if err != nil {
+	if err := s.notificationSender.SendWeatherUpdate(ctx, sendWeatherUpd); err != nil {
 		return fmt.Errorf("send weather update notification: %w", err)
 	}
 

@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	v1 "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/command/notification"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/notification-srv/internal/config"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/notification-srv/internal/dto"
-	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/notification-srv/internal/error"
 )
 
 type EmailSender interface {
@@ -29,91 +28,87 @@ func NewEmailSendingService(emailTemplates config.EmailTemplates, sender EmailSe
 	}
 }
 
-func (s *EmailSendingService) SendConfirmation(ctx context.Context, req *v1.SendConfirmationRequest) (*v1.SendConfirmationResponse, error) {
+func (s *EmailSendingService) SendConfirmation(ctx context.Context, sendConfirm notification.SendConfirmation) error {
 	template := s.emailTemplates.Confirmation
 
 	email := dto.SimpleEmail{
 		From:    template.From,
-		To:      req.GetNotificationWithToken().GetNotification().GetTo(),
+		To:      sendConfirm.To,
 		Subject: template.Subject,
 		Text: fmt.Sprintf(
 			template.Text,
-			req.GetNotificationWithToken().GetToken(),
+			sendConfirm.Token,
 		),
 	}
 
 	if err := s.sender.Send(ctx, email); err != nil {
-		s.log.Error("failed to send confirmation email", "error", err)
-		return &v1.SendConfirmationResponse{}, commonerrors.ErrEmailSendingFailed
+		return fmt.Errorf("sending confirmation email: %w", err)
 	}
-	s.log.Debug("sent confirmation email successfully", "to", req.GetNotificationWithToken().GetNotification().GetTo())
+	s.log.Debug("sent confirmation email successfully", "to", sendConfirm.To)
 
-	return &v1.SendConfirmationResponse{}, nil
+	return nil
 }
 
-func (s *EmailSendingService) SendConfirmationSuccess(ctx context.Context, req *v1.SendConfirmationSuccessRequest) (*v1.SendConfirmationSuccessResponse, error) {
+func (s *EmailSendingService) SendConfirmationSuccess(ctx context.Context, sendConfirmSuccess notification.SendConfirmationSuccess) error {
 	template := s.emailTemplates.ConfirmationSuccess
 
 	email := dto.SimpleEmail{
 		From:    template.From,
-		To:      req.GetNotificationWithToken().GetNotification().GetTo(),
+		To:      sendConfirmSuccess.To,
 		Subject: template.Subject,
 		Text: fmt.Sprintf(
 			template.Text,
-			req.GetNotificationWithToken().GetToken(),
+			sendConfirmSuccess.Token,
 		),
 	}
 
 	if err := s.sender.Send(ctx, email); err != nil {
-		s.log.Error("failed to send confirmation success email", "error", err)
-		return &v1.SendConfirmationSuccessResponse{}, commonerrors.ErrEmailSendingFailed
+		return fmt.Errorf("sending confirmation success email: %w", err)
 	}
-	s.log.Debug("sent confirmation success email successfully", "to", req.GetNotificationWithToken().GetNotification().GetTo())
+	s.log.Debug("sent confirmation success email successfully", "to", sendConfirmSuccess.To)
 
-	return &v1.SendConfirmationSuccessResponse{}, nil
+	return nil
 }
 
-func (s *EmailSendingService) SendUnsubscribeSuccess(ctx context.Context, req *v1.SendUnsubscribeSuccessRequest) (*v1.SendUnsubscribeSuccessResponse, error) {
+func (s *EmailSendingService) SendWeatherUpdate(ctx context.Context, sendWeatherUpd notification.SendWeatherUpdate) error {
+	template := s.emailTemplates.WeatherUpdate
+
+	email := dto.SimpleEmail{
+		From:    template.From,
+		To:      sendWeatherUpd.To,
+		Subject: template.Subject,
+		Text: fmt.Sprintf(
+			template.Text,
+			sendWeatherUpd.Weather.Location,
+			sendWeatherUpd.Weather.Temperature,
+			sendWeatherUpd.Weather.Humidity,
+			sendWeatherUpd.Weather.Description,
+			sendWeatherUpd.Token,
+		),
+	}
+
+	if err := s.sender.Send(ctx, email); err != nil {
+		return fmt.Errorf("sending weather update email: %w", err)
+	}
+	s.log.Debug("sent weather update email successfully", "to", sendWeatherUpd.To)
+
+	return nil
+}
+
+func (s *EmailSendingService) SendUnsubscribeSuccess(ctx context.Context, unsubSuccess notification.SendUnsubscribeSuccess) error {
 	template := s.emailTemplates.UnsubscribeSuccess
 
 	email := dto.SimpleEmail{
 		From:    template.From,
-		To:      req.GetNotification().GetTo(),
+		To:      unsubSuccess.To,
 		Subject: template.Subject,
 		Text:    template.Text,
 	}
 
 	if err := s.sender.Send(ctx, email); err != nil {
-		s.log.Error("failed to send unsubscribe success email", "error", err)
-		return &v1.SendUnsubscribeSuccessResponse{}, commonerrors.ErrEmailSendingFailed
+		return fmt.Errorf("sending unsubscribe email: %w", err)
 	}
-	s.log.Debug("sent unsubscribe success email successfully", "to", req.GetNotification().GetTo())
+	s.log.Debug("sent unsubscribe success email successfully", "to", unsubSuccess.To)
 
-	return &v1.SendUnsubscribeSuccessResponse{}, nil
-}
-
-func (s *EmailSendingService) SendWeatherUpdate(ctx context.Context, req *v1.SendWeatherUpdateRequest) (*v1.SendWeatherUpdateResponse, error) {
-	template := s.emailTemplates.WeatherUpdate
-
-	email := dto.SimpleEmail{
-		From:    template.From,
-		To:      req.GetWeatherUpdateNotification().GetNotificationWithToken().GetNotification().GetTo(),
-		Subject: template.Subject,
-		Text: fmt.Sprintf(
-			template.Text,
-			req.GetWeatherUpdateNotification().GetWeather().GetLocation(),
-			req.GetWeatherUpdateNotification().GetWeather().GetTemperature(),
-			req.GetWeatherUpdateNotification().GetWeather().GetHumidity(),
-			req.GetWeatherUpdateNotification().GetWeather().GetDescription(),
-			req.GetWeatherUpdateNotification().GetNotificationWithToken().GetToken(),
-		),
-	}
-
-	if err := s.sender.Send(ctx, email); err != nil {
-		s.log.Error("failed to send weather update email", "error", err)
-		return &v1.SendWeatherUpdateResponse{}, commonerrors.ErrEmailSendingFailed
-	}
-	s.log.Debug("sent weather update email successfully", "to", req.GetWeatherUpdateNotification().GetNotificationWithToken().GetNotification().GetTo())
-
-	return &v1.SendWeatherUpdateResponse{}, nil
+	return nil
 }
