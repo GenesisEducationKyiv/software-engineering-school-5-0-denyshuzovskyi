@@ -7,6 +7,10 @@ import (
 
 type NoOpHandler struct{}
 
+func NewNoOpHandler() *NoOpHandler {
+	return &NoOpHandler{}
+}
+
 func (h *NoOpHandler) Enabled(_ context.Context, _ slog.Level) bool {
 	return false
 }
@@ -21,8 +25,4 @@ func (h *NoOpHandler) WithAttrs(_ []slog.Attr) slog.Handler {
 
 func (h *NoOpHandler) WithGroup(_ string) slog.Handler {
 	return h
-}
-
-func NewNoOpHandler() *NoOpHandler {
-	return &NoOpHandler{}
 }

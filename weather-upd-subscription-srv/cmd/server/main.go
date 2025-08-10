@@ -18,6 +18,7 @@ import (
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/logger"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/metrics"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/model"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/publisher"
 	rabbit "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/rabbitmq"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/repository/postgresql"
@@ -37,7 +38,8 @@ import (
 
 func main() {
 	cfg := config.ReadConfig("./config/config.yaml")
-	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
+	log := slog.New(jsonHandler)
 	weatherLog := slog.New(slog.NewJSONHandler(logger.SetUpRotator("logs/weather.log"), &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	if err := runApp(cfg, weatherLog, log); err != nil {
@@ -67,6 +69,11 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 
 	cacheMetrics := metrics.NewPrometheusCacheMetrics()
 	cacheMetrics.Register()
+	httpMetrics := metrics.NewPrometheusHTTPMetrics()
+	httpMetrics.Register()
+	weatherUpdJobMetrics := metrics.NewPrometheusWeatherUpdJobMetrics()
+	weatherUpdJobMetrics.Register()
+	weatherUpdJobMetrics.Init([]string{string(model.Frequency_Daily), string(model.Frequency_Hourly)})
 
 	client := &http.Client{}
 	weatherapiClient := weatherapi.NewClient(cfg.WeatherProvider.Url, cfg.WeatherProvider.Key, client, log)
@@ -107,7 +114,7 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	weatherService := weather.NewWeatherService(cachingWeatherProvider, log)
 	subscriptionService := subscription.NewSubscriptionService(db, cachingWeatherProvider, subscriberRepository, subscriptionRepository, tokenRepository, notificationCommandSender, log)
 	notificationService := notification.NewNotificationService(notificationCommandSender)
-	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, log)
+	weatherUpdateSendingService := weatherupd.NewWeatherUpdateSendingService(subscriptionService, weatherService, notificationService, weatherUpdJobMetrics, log)
 
 	validate := validator.New()
 	locationValidator := validators.NewLocationValidator(validate)
@@ -123,13 +130,13 @@ func runApp(cfg *config.Config, weatherLog *slog.Logger, log *slog.Logger) error
 	cron.Start()
 	defer cron.Stop()
 
-	mux := server.InitMux(weatherHandler, subscriptionHandler)
+	mux := server.InitMux(weatherHandler, subscriptionHandler, httpMetrics)
 	srv := &http.Server{
 		Addr:    net.JoinHostPort(cfg.HTTPServer.Host, cfg.HTTPServer.Port),
 		Handler: mux,
 	}
 
-	log.Info("starting http server", "addr", srv.Addr)
+	log.Info("starting HTTP server", "addr", srv.Addr)
 
 	return srv.ListenAndServe()
 }
