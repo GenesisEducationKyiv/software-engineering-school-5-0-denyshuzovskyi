@@ -1,0 +1,20 @@
+server:
+  host: "0.0.0.0"
+  port: "8080"
+datasource:
+  url: postgres://user:password@localhost:5432/nimbus-notify?sslmode=disable
+notification-service:
+  url: localhost:50051
+weather-provider:
+  url: https://api.weatherapi.com/v1
+  key:
+fallback-weather-provider:
+  url: https://api.weatherstack.com/current
+  key:
+redis:
+  url: localhost:6379
+  password:
+  ttl: 15m
+rabbitmq:
+  url: "amqp://user:password@localhost:5672/"
+  exchange: "notification-exchange"

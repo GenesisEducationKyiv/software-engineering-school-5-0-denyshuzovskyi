@@ -1,0 +1,1 @@
+CREATE INDEX idx_token_subscription_id_type ON token (subscription_id, type);

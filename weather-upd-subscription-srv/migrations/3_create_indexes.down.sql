@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_token_subscription_id_type;
