@@ -8,13 +8,12 @@ import (
 	"log/slog"
 	"time"
 
-	v1 "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-proto/gen/go/notification/v1"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/command/notification"
+	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/nimbus-lib/pkg/util/sqlutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/dto"
 	commonerrors "github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/error"
-	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/lib/sqlutil"
 	"github.com/GenesisEducationKyiv/software-engineering-school-5-0-denyshuzovskyi/weather-upd-subscription-srv/internal/model"
 	"github.com/google/uuid"
-	"google.golang.org/grpc"
 )
 
 type WeatherProvider interface {
@@ -43,9 +42,9 @@ type TokenRepository interface {
 }
 
 type NotificationSender interface {
-	SendConfirmation(context.Context, *v1.SendConfirmationRequest, ...grpc.CallOption) (*v1.SendConfirmationResponse, error)
-	SendConfirmationSuccess(context.Context, *v1.SendConfirmationSuccessRequest, ...grpc.CallOption) (*v1.SendConfirmationSuccessResponse, error)
-	SendUnsubscribeSuccess(context.Context, *v1.SendUnsubscribeSuccessRequest, ...grpc.CallOption) (*v1.SendUnsubscribeSuccessResponse, error)
+	SendConfirmation(context.Context, notification.SendConfirmation) error
+	SendConfirmationSuccess(context.Context, notification.SendConfirmationSuccess) error
+	SendUnsubscribeSuccess(context.Context, notification.SendUnsubscribeSuccess) error
 }
 
 type SubscriptionService struct {
@@ -142,16 +141,16 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, subReq dto.Subscrip
 			return errIn
 		}
 
-		confReq := &v1.SendConfirmationRequest{
-			NotificationWithToken: &v1.NotificationWithToken{
-				Notification: &v1.Notification{
+		sendConfirm := notification.SendConfirmation{
+			NotificationWithToken: notification.NotificationWithToken{
+				Notification: notification.Notification{
 					To: subReq.Email,
 				},
 				Token: token.Token,
 			},
 		}
 
-		_, errIn = s.notificationSender.SendConfirmation(ctx, confReq)
+		errIn = s.notificationSender.SendConfirmation(ctx, sendConfirm)
 		if errIn != nil {
 			return errIn
 		}
@@ -214,16 +213,16 @@ func (s *SubscriptionService) Confirm(ctx context.Context, tokenStr string) erro
 			return errIn
 		}
 
-		confSuccessReq := &v1.SendConfirmationSuccessRequest{
-			NotificationWithToken: &v1.NotificationWithToken{
-				Notification: &v1.Notification{
+		sendConfirmSuccess := notification.SendConfirmationSuccess{
+			NotificationWithToken: notification.NotificationWithToken{
+				Notification: notification.Notification{
 					To: subscriber.Email,
 				},
 				Token: unsubToken.Token,
 			},
 		}
 
-		_, errIn = s.notificationSender.SendConfirmationSuccess(ctx, confSuccessReq)
+		errIn = s.notificationSender.SendConfirmationSuccess(ctx, sendConfirmSuccess)
 		if errIn != nil {
 			return errIn
 		}
@@ -267,13 +266,13 @@ func (s *SubscriptionService) Unsubscribe(ctx context.Context, tokenStr string) 
 			return errIn
 		}
 
-		unsubReq := &v1.SendUnsubscribeSuccessRequest{
-			Notification: &v1.Notification{
+		sendUnsubSuccess := notification.SendUnsubscribeSuccess{
+			Notification: notification.Notification{
 				To: subscriber.Email,
 			},
 		}
 
-		_, errIn = s.notificationSender.SendUnsubscribeSuccess(ctx, unsubReq)
+		errIn = s.notificationSender.SendUnsubscribeSuccess(ctx, sendUnsubSuccess)
 		if errIn != nil {
 			return errIn
 		}

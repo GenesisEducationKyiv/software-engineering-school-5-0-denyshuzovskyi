@@ -2,7 +2,7 @@ FROM golang:1.24.5-alpine AS builder
 
 WORKDIR /app
 
-COPY nimbus-proto ./nimbus-proto
+COPY nimbus-lib ./nimbus-lib
 COPY notification-srv ./notification-srv
 
 WORKDIR /app/notification-srv

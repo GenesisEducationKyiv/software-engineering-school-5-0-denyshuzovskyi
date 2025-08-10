@@ -27,8 +27,26 @@ services:
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 5
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: nimbus-notify-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - nimbus-notify-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   weather-upd-subscription-srv:
     image: weather-upd-subscription-srv:latest
@@ -37,6 +55,8 @@ services:
       postgresql:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     ports:
       - "8080:8080"
@@ -50,20 +70,23 @@ services:
       WEATHER_PROVIDER_KEY: ${WEATHER_PROVIDER_KEY}
       REDIS_URL: ${REDIS_URL}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
 
   notification-srv:
     image: notification-srv:latest
     container_name: notification-srv
-    ports:
-      - "50051:50051"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     networks:
       - nimbus-notify-network
     environment:
-      GRPC_SERVER_HOST: ${GRPC_SERVER_HOST}
-      GRPC_SERVER_PORT: ${GRPC_SERVER_PORT}
       EMAIL_SERVICE_DOMAIN: ${EMAIL_SERVICE_DOMAIN}
       EMAIL_SERVICE_KEY: ${EMAIL_SERVICE_KEY}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
 
 
 networks:

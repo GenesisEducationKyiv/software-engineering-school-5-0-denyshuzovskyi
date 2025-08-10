@@ -15,6 +15,7 @@ type Config struct {
 	WeatherProvider         WeatherProvider     `yaml:"weather-provider" env-prefix:"WEATHER_PROVIDER_"`
 	FallbackWeatherProvider WeatherProvider     `yaml:"fallback-weather-provider" env-prefix:"FALLBACK_WEATHER_PROVIDER_"`
 	Redis                   Redis               `yaml:"redis"`
+	RabbitMQ                RabbitMQ            `yaml:"rabbitmq"`
 }
 
 type HTTPServer struct {
@@ -35,6 +36,11 @@ type Redis struct {
 	Url      string        `yaml:"url" env:"REDIS_URL"`
 	Password string        `yaml:"password" env:"REDIS_PASSWORD"`
 	TTL      time.Duration `yaml:"ttl"`
+}
+
+type RabbitMQ struct {
+	Url      string `yaml:"url" env:"RABBITMQ_URL"`
+	Exchange string `yaml:"exchange" env:"RABBITMQ_EXCHANGE"`
 }
 
 type NotificationService struct {

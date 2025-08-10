@@ -2,7 +2,7 @@ FROM golang:1.24.5-alpine AS builder
 
 WORKDIR /app
 
-COPY nimbus-proto ./nimbus-proto
+COPY nimbus-lib ./nimbus-lib
 COPY weather-upd-subscription-srv ./weather-upd-subscription-srv
 
 WORKDIR /app/weather-upd-subscription-srv

@@ -8,14 +8,9 @@ import (
 )
 
 type Config struct {
-	GRPCServer     GRPCServer     `yaml:"grpc-server"`
+	RabbitMQ       RabbitMQ       `yaml:"rabbitmq"`
 	EmailService   EmailService   `yaml:"email-service"`
 	EmailTemplates EmailTemplates `yaml:"email-templates"`
-}
-
-type GRPCServer struct {
-	Host string `yaml:"host" env:"GRPC_SERVER_HOST"`
-	Port string `yaml:"port" env:"GRPC_SERVER_PORT"`
 }
 
 type EmailService struct {
@@ -28,6 +23,12 @@ type EmailData struct {
 	Subject string `yaml:"subject"`
 	Text    string `yaml:"text"`
 	From    string
+}
+
+type RabbitMQ struct {
+	Url      string `yaml:"url" env:"RABBITMQ_URL"`
+	Exchange string `yaml:"exchange" env:"RABBITMQ_EXCHANGE"`
+	Queue    string `yaml:"queue" env:"RABBITMQ_QUEUE"`
 }
 
 func (ed *EmailData) fillOutFromEmail(from string) {
