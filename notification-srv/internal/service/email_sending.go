@@ -122,10 +122,10 @@ func (s *EmailSendingService) SendUnsubscribeSuccess(ctx context.Context, unsubS
 
 func (s *EmailSendingService) recordMetric(err error, command notification.NotificationCommand) error {
 	if err != nil {
-		s.emailMetrics.RecordEmailFailed(command.Type())
+		s.emailMetrics.RecordEmailFailed(string(command.Type()))
 		return err
 	}
 
-	s.emailMetrics.RecordEmailSent(command.Type())
+	s.emailMetrics.RecordEmailSent(string(command.Type()))
 	return nil
 }

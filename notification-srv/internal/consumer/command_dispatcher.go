@@ -26,7 +26,7 @@ func NewNotificationCommandDispatcher(notificationSendingService NotificationSen
 }
 
 func (d *NotificationCommandDispatcher) Dispatch(ctx context.Context, envelope message.Envelope) error {
-	switch envelope.Type {
+	switch notification.CommandType(envelope.Type) {
 	case notification.Confirmation:
 		var cmd notification.SendConfirmation
 		if err := json.Unmarshal(envelope.Payload, &cmd); err != nil {

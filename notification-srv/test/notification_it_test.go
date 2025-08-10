@@ -93,9 +93,15 @@ func SetUpRabbitMQ(t *testing.T) *amqp.Channel {
 func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
 	ch := SetUpRabbitMQ(t)
 
+	defaultExchange := ""
 	queueName := "test-queue"
 	_, err := ch.QueueDeclare(queueName, false, false, false, false, nil)
 	require.NoError(t, err)
+
+	// publishing to exchange = "" (default exchange) with routingKey = queueName routes directly to a queue with that name, if it exists
+	routingKey := rabbitmq.RoutingKey(queueName)
+
+	publisher := rabbitmq.NewPublisher(ch, defaultExchange)
 
 	cfg := config.ReadConfig("./../config/config.yaml")
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
@@ -117,8 +123,12 @@ func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
 		metrics.WithEmailSentCounterVec(emailSentMetric),
 		metrics.WithEmailFailedCounterVec(emailFailedMetric),
 	)
-	emailTypes := []string{notification.Confirmation, notification.ConfirmationSuccess, notification.WeatherUpdate, notification.UnsubscribeSuccess}
-	emailMetrics.Init(emailTypes)
+	emailTypes := []notification.CommandType{notification.Confirmation, notification.ConfirmationSuccess, notification.WeatherUpdate, notification.UnsubscribeSuccess}
+	emailTypesStr := make([]string, len(emailTypes))
+	for i := range len(emailTypes) {
+		emailTypesStr[i] = string(emailTypes[i])
+	}
+	emailMetrics.Init(emailTypesStr)
 
 	emailSendingService := service.NewEmailSendingService(cfg.EmailTemplates, emailSenderMock, emailMetrics, log)
 	notificationCommandDispatcher := consumer.NewNotificationCommandDispatcher(emailSendingService)
@@ -149,7 +159,7 @@ func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
 	}()
 
 	for _, command := range notificationCommands {
-		publishNotificationCommand(t, ch, queueName, command)
+		publishNotificationCommand(t, publisher, routingKey, command)
 	}
 
 	for i := range len(notificationCommands) {
@@ -169,8 +179,8 @@ func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
 	require.Equal(t, cfg.EmailTemplates.UnsubscribeSuccess.Subject, sentEmails[3].Subject)
 
 	delta := 0.1
-	for _, emailType := range emailTypes {
-		assertEmailMetrics(t, emailSentMetric, emailFailedMetric, emailType, 1, 0, delta)
+	for _, emailTypeStr := range emailTypesStr {
+		assertEmailMetrics(t, emailSentMetric, emailFailedMetric, emailTypeStr, 1, 0, delta)
 	}
 	assertEmailMetrics(t, emailSentMetric, emailFailedMetric, "unknown", 0, 0, delta)
 
@@ -178,14 +188,13 @@ func TestNotificationCommandConsumer_HandleAllNotificationTypes(t *testing.T) {
 	t.Log("test completed successfully")
 }
 
-func publishNotificationCommand(t *testing.T, ch *amqp.Channel, queue string, cmd notification.NotificationCommand) {
+func publishNotificationCommand(t *testing.T, publisher *rabbitmq.Publisher, routingKey rabbitmq.RoutingKey, cmd notification.NotificationCommand) {
 	t.Helper()
 
 	bytes, err := notification.MarshalEnvelopeFromCommand(cmd)
 	require.NoError(t, err)
 
-	rabbitmqPublisher := rabbitmq.NewPublisher(ch, "")
-	err = rabbitmqPublisher.Publish(t.Context(), queue, bytes)
+	err = publisher.Publish(t.Context(), routingKey, bytes)
 	require.NoError(t, err)
 
 	t.Logf("published notification %s", cmd.Type())

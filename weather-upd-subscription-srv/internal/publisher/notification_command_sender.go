@@ -8,7 +8,7 @@ import (
 )
 
 type CommandPublisher interface {
-	Publish(context.Context, string, []byte) error
+	Publish(context.Context, rabbitmq.RoutingKey, []byte) error
 }
 
 type NotificationCommandSender struct {

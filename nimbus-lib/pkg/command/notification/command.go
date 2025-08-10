@@ -1,14 +1,16 @@
 package notification
 
+type CommandType string
+
 const (
-	Confirmation        = "confirmation"
-	ConfirmationSuccess = "confirmation_success"
-	UnsubscribeSuccess  = "unsubscribe_success"
-	WeatherUpdate       = "weather_update"
+	Confirmation        CommandType = "confirmation"
+	ConfirmationSuccess CommandType = "confirmation_success"
+	UnsubscribeSuccess  CommandType = "unsubscribe_success"
+	WeatherUpdate       CommandType = "weather_update"
 )
 
 type NotificationCommand interface {
-	Type() string
+	Type() CommandType
 }
 
 type Notification struct {
@@ -31,7 +33,7 @@ type SendConfirmation struct {
 	NotificationWithToken
 }
 
-func (c *SendConfirmation) Type() string {
+func (c *SendConfirmation) Type() CommandType {
 	return Confirmation
 }
 
@@ -39,7 +41,7 @@ type SendConfirmationSuccess struct {
 	NotificationWithToken
 }
 
-func (c *SendConfirmationSuccess) Type() string {
+func (c *SendConfirmationSuccess) Type() CommandType {
 	return ConfirmationSuccess
 }
 
@@ -47,7 +49,7 @@ type SendUnsubscribeSuccess struct {
 	Notification
 }
 
-func (c *SendUnsubscribeSuccess) Type() string {
+func (c *SendUnsubscribeSuccess) Type() CommandType {
 	return UnsubscribeSuccess
 }
 
@@ -56,6 +58,6 @@ type SendWeatherUpdate struct {
 	Weather Weather `json:"weather"`
 }
 
-func (c *SendWeatherUpdate) Type() string {
+func (c *SendWeatherUpdate) Type() CommandType {
 	return WeatherUpdate
 }

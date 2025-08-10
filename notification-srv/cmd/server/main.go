@@ -61,7 +61,7 @@ func runApp(cfg *config.Config, log *slog.Logger) error {
 	emailClient := emailclient.NewEmailClient(mailgun.NewMailgun(cfg.EmailService.Domain, cfg.EmailService.Key))
 	emailMetrics := metrics.NewPrometheusEmailMetrics()
 	emailMetrics.Register()
-	emailMetrics.Init([]string{notification.Confirmation, notification.ConfirmationSuccess, notification.WeatherUpdate, notification.UnsubscribeSuccess})
+	emailMetrics.Init([]string{string(notification.Confirmation), string(notification.ConfirmationSuccess), string(notification.WeatherUpdate), string(notification.UnsubscribeSuccess)})
 	emailSendingService := service.NewEmailSendingService(cfg.EmailTemplates, emailClient, emailMetrics, log)
 
 	notificationCommandDispatcher := consumer.NewNotificationCommandDispatcher(emailSendingService)
